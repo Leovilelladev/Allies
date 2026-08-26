@@ -2,6 +2,7 @@ import { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import { Stage, Layer, Line, Text, Transformer } from 'react-konva';
 import Token, { tokenColor } from './Token';
 import ChatPanel from './ChatPanel';
+import IniciativaPanel from './IniciativaPanel';
 import { sb } from './supabaseClient';
 
 const MIN_SCALE = 0.2;
@@ -41,7 +42,9 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
   const [selectedId, setSelectedId] = useState(null);
   const [sincronizando, setSincronizando] = useState(true);
   const [perfil, setPerfil] = useState(null);
+  const [ehMestre, setEhMestre] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showIniciativa, setShowIniciativa] = useState(false);
   const isPanning = useRef(false);
   const lastPointer = useRef({ x: 0, y: 0 });
   const shapeRefs = useRef({});
@@ -73,6 +76,11 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
         if (ativo) {
           setPerfil({ id: uid, nome: perfilData?.nome || perfilData?.usuario || 'Anônimo' });
         }
+      }
+
+      if (uid && campanhaId) {
+        const { data: campanhaData } = await sb.from('campanhas').select('mestre_id').eq('id', campanhaId).single();
+        if (ativo) setEhMestre(campanhaData?.mestre_id === uid);
       }
 
       const { data, error } = await sb.from('mesa_tokens').select('*').eq('cena_id', cenaId);
@@ -326,12 +334,27 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
         <button className="mesa-btn" onClick={() => setShowChat((v) => !v)}>
           {showChat ? 'Fechar chat' : 'Chat'}
         </button>
+        <button
+          className="mesa-btn"
+          onClick={() => setShowIniciativa((v) => !v)}
+        >
+          {showIniciativa ? 'Fechar iniciativa' : 'Iniciativa'}
+        </button>
         <span className="mesa-zoom">{Math.round(scale * 100)}%</span>
         <button className="mesa-btn" onClick={resetView}>Centralizar</button>
         {sincronizando && <span className="mesa-sync">Sincronizando…</span>}
       </div>
 
       {showChat && perfil && <ChatPanel cenaId={cenaId} userId={perfil.id} autorNome={perfil.nome} />}
+      {showIniciativa && perfil && (
+        <IniciativaPanel
+          cenaId={cenaId}
+          userId={perfil.id}
+          autorNome={perfil.nome}
+          ehMestre={ehMestre}
+          deslocado={showChat}
+        />
+      )}
 
       <Stage
         width={size.width}

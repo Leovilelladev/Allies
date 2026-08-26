@@ -265,3 +265,114 @@ a.mesa-btn {
   color: var(--wax-bright);
   font-size: 11px;
 }
+
+.mesa-iniciativa {
+  position: absolute;
+  top: 52px;
+  right: 0;
+  width: 260px;
+  max-height: calc(100vh - 52px - 24px);
+  z-index: 10;
+  margin: 12px;
+  background: rgba(28, 23, 18, 0.94);
+  border: 1px solid var(--brass);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.mesa-iniciativa--deslocado {
+  right: 320px;
+}
+
+.mesa-iniciativa-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--brass);
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: var(--parchment);
+}
+
+.mesa-iniciativa-controles {
+  display: flex;
+  gap: 6px;
+}
+.mesa-iniciativa-controles .mesa-btn {
+  padding: 5px 9px;
+  font-size: 10px;
+}
+
+.mesa-iniciativa-lista {
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mesa-iniciativa-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+}
+.mesa-iniciativa-item--ativo {
+  background: rgba(169, 129, 63, 0.18);
+  border-color: var(--brass-bright);
+}
+
+.mesa-iniciativa-valor {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--brass-bright);
+  min-width: 22px;
+  text-align: center;
+}
+
+.mesa-iniciativa-nome {
+  flex: 1;
+  font-size: 13px;
+  color: var(--parchment);
+}
+
+.mesa-iniciativa-remover {
+  background: none;
+  border: none;
+  color: var(--wax-bright);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.mesa-iniciativa-form {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--brass);
+}
+.mesa-iniciativa-form input {
+  background: var(--leather);
+  border: 1px solid var(--brass);
+  border-radius: 2px;
+  padding: 6px 8px;
+  color: var(--parchment);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  min-width: 0;
+}
+.mesa-iniciativa-form input:first-child {
+  flex: 1;
+}
+.mesa-iniciativa-input-valor {
+  width: 56px;
+}
+.mesa-iniciativa-form .mesa-btn {
+  padding: 6px 10px;
+}
