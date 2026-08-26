@@ -18,8 +18,9 @@ Site para hospedar campanhas de RPG, fichas de personagem e informações de ses
 - Confirmação de e-mail desativada no painel do Supabase
 
 ## Banco de dados (Supabase)
-Tabelas: `profiles`, `campanhas` (com `proxima_sessao`), `campanha_membros`, `fichas`,
-e as da Mesa Virtual: `cenas`, `mesa_tokens`, `mesa_chat`, `mesa_iniciativa`, `mesa_sons`.
+Tabelas: `profiles`, `campanhas`, `sessoes`, `campanha_membros`, `fichas`,
+e as da Mesa Virtual: `cenas` (pendem de `sessoes`), `mesa_tokens`, `mesa_chat`,
+`mesa_iniciativa`, `mesa_sons`.
 Todas com RLS. Campanhas, fichas e a lista de membros só são visíveis para o mestre e os jogadores convidados (usa uma função `is_campanha_member` no banco). O mestre entra automaticamente como membro da própria campanha.
 
 ## Ficha de personagem (D&D 5e)
@@ -92,16 +93,49 @@ modernista desenhado no Claude Design. O arquivo original do design está no his
 - **Mesa Virtual:** mesma fonte e mesmo acento, **fundo escuro** — mapa de batalha pede
   contraste, igual Foundry/Roll20. Tokens do mapa mantêm a paleta própria.
 
-## Banco: próxima sessão
-Coluna `proxima_sessao timestamptz` em `campanhas` (nula = "A combinar"), definida pelo
-mestre no modal. A contagem de fichas por campanha é consultada de verdade (o RLS já
-limita ao que o usuário pode ver). **Sessões já realizadas não existem no banco** — o
-design previa "5 sessões", mas não há registro de sessão; ficou de fora.
+## Sessões (episódios)
+
+Uma campanha é dividida em **sessões**, exibidas como `S01 · nome do episódio`. Cada
+sessão pode ter **vários mapas** — numa noite de jogo você troca de taverna pra estrada
+pra masmorra sem precisar abrir outra sessão.
+
+```
+S01 · O Convite de Vhalor   (29 ago · 20h)
+  ├ Taverna do Javali
+  ├ Estrada do Norte
+  └ Cripta
+S02 · Cinzas na Muralha     (5 set · 20h)
+  └ Muralha Leste
+```
+
+**Tabela `sessoes`:** `campanha_id`, `numero` (único por campanha), `nome`, `data`
+(nula = "A combinar"), `resumo`. RLS: membros veem, só o mestre cria/edita/exclui.
+Está no Realtime, então o jogador vê a sessão nova aparecer sem recarregar.
+
+**`cenas` agora tem `sessao_id`.** O índice `cenas_uma_por_campanha` foi removido — era
+ele que travava tudo em um mapa só. Cada mapa continua dono dos seus tokens, chat,
+iniciativa e névoa, e tudo isso cai junto (`ON DELETE CASCADE`) se a sessão for excluída
+— o modal de exclusão avisa quantos mapas vão junto.
+
+**Onde mexe:** o mestre cria e edita na página da campanha (com data e resumo) e também
+consegue abrir sessão/mapa de dentro da Mesa, no meio do jogo. Trocar de sessão ou de
+mapa acontece no seletor do topo da Mesa. A URL carrega `?campanha=&sessao=&cena=`, então
+F5 volta pro mesmo lugar.
+
+**Ao abrir a Mesa** cai na sessão mais recente (maior número). Campanha sem nenhuma
+sessão: o mestre ganha uma S01 com um "Mapa 1" automaticamente; o jogador vê um aviso.
+
+**Próxima sessão** (dashboard e subtítulo da campanha) é **derivada**: a sessão futura
+mais próxima. A coluna `campanhas.proxima_sessao` foi removida — era uma segunda fonte de
+verdade que ia divergir. Sessões já realizadas continuam sem contagem: não há registro de
+"sessão jogada", só as marcadas.
 
 ## Corrigido de quebra
 - Três `confirm()` nativos ainda no código (excluir campanha, sair da campanha, excluir
   ficha), apesar de o `#modal-confirmar` já existir no HTML sem estar ligado a nada.
   Agora usam o modal próprio, via `confirmar()` que devolve Promise.
+- A Mesa Virtual também ganhou modal próprio (`ModalNome`) para nomear sessão e mapa —
+  `window.prompt` tem o mesmo problema de não aparecer no navegador embutido do VS Code.
 
 ## Notas
 - Sincronizado entre PC e notebook via Google Drive (vault Obsidian dentro da pasta Allies > allies)
