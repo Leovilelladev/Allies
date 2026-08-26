@@ -16,11 +16,17 @@ let modoAuth = 'login'; // 'login' | 'signup'
 function $(sel) { return document.querySelector(sel); }
 function $all(sel) { return Array.from(document.querySelectorAll(sel)); }
 
-function toast(msg) {
+let toastTimer = null;
+function toast(msg, tipo = 'info') {
   const el = $('#toast');
-  el.textContent = msg;
+  const icone = tipo === 'erro' ? '✕' : tipo === 'sucesso' ? '✓' : '❧';
+  el.innerHTML = `<span class="toast-icon">${icone}</span><span>${msg}</span>`;
+  el.classList.remove('toast-erro', 'toast-sucesso');
+  if (tipo === 'erro') el.classList.add('toast-erro');
+  if (tipo === 'sucesso') el.classList.add('toast-sucesso');
   el.classList.add('visible');
-  setTimeout(() => el.classList.remove('visible'), 2600);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('visible'), 2600);
 }
 
 function showAuthError(msg) {
@@ -76,24 +82,28 @@ $('#auth-form').addEventListener('submit', async (e) => {
   }
   const usuario = usuarioRaw.toLowerCase();
   const emailInterno = `${usuario}@allies.local`;
+  const textoOriginal = btn.textContent;
   btn.disabled = true;
+  btn.textContent = modoAuth === 'signup' ? 'Forjando…' : 'Abrindo…';
+
+  const reabilitar = () => { btn.disabled = false; btn.textContent = textoOriginal; };
 
   try {
     if (modoAuth === 'signup') {
       const nome = $('#nome').value.trim();
-      if (!nome) { showAuthError('Diga o nome do seu aventureiro.'); btn.disabled = false; return; }
+      if (!nome) { showAuthError('Diga o nome do seu aventureiro.'); reabilitar(); return; }
       const { data, error } = await sb.auth.signUp({ email: emailInterno, password: senha });
       if (error) throw error;
       if (data.user) {
         const { error: profErr } = await sb.from('profiles').insert({ id: data.user.id, nome, usuario });
         if (profErr) {
-          if (profErr.code === '23505') { showAuthError('Este nome de usuário já existe.'); btn.disabled = false; return; }
+          if (profErr.code === '23505') { showAuthError('Este nome de usuário já existe.'); reabilitar(); return; }
           throw profErr;
         }
       }
       if (!data.session) {
         showAuthError('Conta criada! Entre com seu usuário e senha.');
-        btn.disabled = false;
+        reabilitar();
         return;
       }
     } else {
@@ -103,7 +113,7 @@ $('#auth-form').addEventListener('submit', async (e) => {
   } catch (err) {
     showAuthError(traduzErro(err.message));
   }
-  btn.disabled = false;
+  reabilitar();
 });
 
 function traduzErro(msg) {
@@ -159,7 +169,7 @@ async function carregarPerfis(ids) {
 async function carregarCampanhas() {
   $('#dashboard-sub').textContent = 'carregando...';
   const { data, error } = await sb.from('campanhas').select('*').order('criado_em', { ascending: false });
-  if (error) { toast('Erro ao carregar campanhas'); return; }
+  if (error) { toast('Erro ao carregar campanhas', 'erro'); return; }
   campanhas = data || [];
   await carregarPerfis(campanhas.map(c => c.mestre_id));
   renderShelf();
@@ -209,8 +219,8 @@ $('#excluir-campanha-btn').addEventListener('click', async () => {
   if (!campanhaAtual) return;
   if (!confirm(`Excluir a campanha "${campanhaAtual.nome}"? Isso também apaga todas as fichas dela. Não é possível desfazer.`)) return;
   const { error } = await sb.from('campanhas').delete().eq('id', campanhaAtual.id);
-  if (error) { toast('Erro ao excluir campanha'); return; }
-  toast('Campanha excluída.');
+  if (error) { toast('Erro ao excluir campanha', 'erro'); return; }
+  toast('Campanha excluída.', 'sucesso');
   switchView('view-dashboard');
   campanhaAtual = null;
   carregarCampanhas();
@@ -228,7 +238,7 @@ $('#form-campanha').addEventListener('submit', async (e) => {
   } else {
     ({ error } = await sb.from('campanhas').insert({ nome, sistema, descricao, mestre_id: currentUser.id }));
   }
-  if (error) { toast('Erro ao salvar campanha'); return; }
+  if (error) { toast('Erro ao salvar campanha', 'erro'); return; }
   $('#modal-campanha').classList.remove('visible');
   toast(campanhaEditando ? 'Campanha atualizada!' : 'Campanha fundada!');
 
@@ -288,15 +298,15 @@ $('#form-convidar').addEventListener('submit', async (e) => {
   if (!campanhaAtual) return;
 
   const { data: perfil, error: buscaErr } = await sb.from('profiles').select('id, nome').ilike('usuario', usuario).maybeSingle();
-  if (buscaErr || !perfil) { toast('Usuário não encontrado'); return; }
+  if (buscaErr || !perfil) { toast('Usuário não encontrado', 'erro'); return; }
 
   const { error } = await sb.from('campanha_membros').insert({ campanha_id: campanhaAtual.id, usuario_id: perfil.id });
   if (error) {
-    if (error.code === '23505') { toast('Esse jogador já está na campanha'); }
-    else { toast('Erro ao convidar'); }
+    if (error.code === '23505') { toast('Esse jogador já está na campanha', 'erro'); }
+    else { toast('Erro ao convidar', 'erro'); }
     return;
   }
-  toast(`${perfil.nome} entrou na campanha!`);
+  toast(`${perfil.nome} entrou na campanha!`, 'sucesso');
   $('#modal-convidar').classList.remove('visible');
   carregarParticipantes(campanhaAtual.id);
 });
@@ -305,8 +315,8 @@ $('#sair-campanha-btn').addEventListener('click', async () => {
   if (!campanhaAtual) return;
   if (!confirm(`Sair da campanha "${campanhaAtual.nome}"?`)) return;
   const { error } = await sb.from('campanha_membros').delete().eq('campanha_id', campanhaAtual.id).eq('usuario_id', currentUser.id);
-  if (error) { toast('Erro ao sair da campanha'); return; }
-  toast('Você saiu da campanha.');
+  if (error) { toast('Erro ao sair da campanha', 'erro'); return; }
+  toast('Você saiu da campanha.', 'sucesso');
   switchView('view-dashboard');
   campanhaAtual = null;
   carregarCampanhas();
@@ -321,7 +331,7 @@ $('#voltar-dashboard-btn').addEventListener('click', () => {
 async function carregarFichas(campanhaId) {
   $('#fichas-grid').innerHTML = `<div class="loading-msg">carregando fichas...</div>`;
   const { data, error } = await sb.from('fichas').select('*').eq('campanha_id', campanhaId).order('criado_em', { ascending: true });
-  if (error) { toast('Erro ao carregar fichas'); return; }
+  if (error) { toast('Erro ao carregar fichas', 'erro'); return; }
   await carregarPerfis(data.map(f => f.usuario_id));
   renderFichas(data || []);
 }
@@ -367,8 +377,8 @@ $('#nova-ficha-btn').addEventListener('click', async () => {
   const { data, error } = await sb.from('fichas').insert({
     campanha_id: campanhaAtual.id, usuario_id: currentUser.id, nome_personagem: nome.trim(), dados: {}
   }).select().single();
-  if (error) { toast('Erro ao criar ficha'); return; }
-  toast('Ficha criada!');
+  if (error) { toast('Erro ao criar ficha', 'erro'); return; }
+  toast('Ficha criada!', 'sucesso');
   await carregarFichas(campanhaAtual.id);
   abrirFicha(data.id);
 });
@@ -376,8 +386,8 @@ $('#nova-ficha-btn').addEventListener('click', async () => {
 async function excluirFicha(id) {
   if (!confirm('Excluir esta ficha? Não é possível desfazer.')) return;
   const { error } = await sb.from('fichas').delete().eq('id', id);
-  if (error) { toast('Erro ao excluir'); return; }
-  toast('Ficha excluída.');
+  if (error) { toast('Erro ao excluir', 'erro'); return; }
+  toast('Ficha excluída.', 'sucesso');
   carregarFichas(campanhaAtual.id);
 }
 
@@ -539,7 +549,7 @@ function recalcularFicha() {
 
 async function abrirFicha(id) {
   const { data, error } = await sb.from('fichas').select('*').eq('id', id).maybeSingle();
-  if (error || !data) { toast('Erro ao abrir ficha'); return; }
+  if (error || !data) { toast('Erro ao abrir ficha', 'erro'); return; }
   fichaAberta = data;
   fichaSomenteLeitura = data.usuario_id !== currentUser.id;
   const d = data.dados || {};
@@ -724,8 +734,8 @@ $('#salvar-ficha-btn').addEventListener('click', async () => {
   const { error } = await sb.from('fichas')
     .update({ nome_personagem, dados, atualizado_em: new Date().toISOString() })
     .eq('id', fichaAberta.id);
-  if (error) { toast('Erro ao salvar ficha'); return; }
+  if (error) { toast('Erro ao salvar ficha', 'erro'); return; }
   fichaAberta.nome_personagem = nome_personagem;
   fichaAberta.dados = dados;
-  toast('Ficha salva!');
+  toast('Ficha salva!', 'sucesso');
 });

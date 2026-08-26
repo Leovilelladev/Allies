@@ -941,3 +941,99 @@
     #app header { padding: 14px 16px; }
     .two-col, .attr-grid { grid-template-columns: 1fr 1fr; }
   }
+
+  /* ================= Polish pass: motion, feedback, consistency ================= */
+
+  html { scroll-behavior: smooth; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--leather); }
+  ::-webkit-scrollbar-thumb { background: var(--brass); border-radius: 6px; border: 2px solid var(--leather); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--brass-bright); }
+  * { scrollbar-color: var(--brass) var(--leather); scrollbar-width: thin; }
+
+  @keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes modal-in {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .view.active { animation: fade-in-up 0.35s ease both; }
+
+  .tome { animation: fade-in-up 0.4s ease both; }
+
+  .modal-backdrop.visible { animation: fade-in 0.2s ease both; }
+  .modal-backdrop.visible .modal { animation: modal-in 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+  .spine, .card-grid .ficha-card {
+    animation: fade-in-up 0.4s ease both;
+  }
+  .shelf .spine:nth-child(1), .card-grid .ficha-card:nth-child(1) { animation-delay: 0.02s; }
+  .shelf .spine:nth-child(2), .card-grid .ficha-card:nth-child(2) { animation-delay: 0.06s; }
+  .shelf .spine:nth-child(3), .card-grid .ficha-card:nth-child(3) { animation-delay: 0.10s; }
+  .shelf .spine:nth-child(4), .card-grid .ficha-card:nth-child(4) { animation-delay: 0.14s; }
+  .shelf .spine:nth-child(n+5), .card-grid .ficha-card:nth-child(n+5) { animation-delay: 0.18s; }
+
+  .ficha-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .ficha-card:hover { transform: translateY(-3px); box-shadow: 0 18px 30px rgba(0,0,0,0.32); }
+
+  button {
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+      transform 0.1s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  }
+  .btn-brass:active, .btn-ghost:active, .btn-ghost-small:active, .btn-seal:active, .btn-danger:active {
+    transform: translateY(1px);
+  }
+  .btn-brass:disabled, .btn-seal:disabled, .btn-ghost:disabled, .btn-ghost-small:disabled {
+    opacity: 0.5;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+    outline: 2px solid var(--brass-bright);
+    outline-offset: 2px;
+  }
+
+  .sheet-tab { transition: color 0.15s ease, border-color 0.2s ease; }
+
+  .empty-state::before {
+    content: '📜';
+    display: block;
+    font-size: 28px;
+    margin-bottom: 10px;
+    opacity: 0.85;
+  }
+
+  #app header { box-shadow: 0 2px 14px rgba(0,0,0,0.3); }
+
+  .toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transform: translate(-50%, 8px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  .toast.visible { transform: translate(-50%, 0); }
+  .toast-icon { font-family: var(--font-display); font-weight: 700; }
+  .toast.toast-erro { border-color: var(--wax); }
+  .toast.toast-erro .toast-icon { color: var(--wax-bright); }
+  .toast.toast-sucesso .toast-icon { color: var(--moss); }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .view.active, .tome, .spine, .card-grid .ficha-card,
+    .modal-backdrop, .modal-backdrop .modal {
+      animation: none !important;
+    }
+    button, .toast, .ficha-card { transition: none !important; }
+  }
