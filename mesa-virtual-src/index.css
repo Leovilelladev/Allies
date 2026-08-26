@@ -383,3 +383,47 @@ a.mesa-btn {
 .mesa-iniciativa-form .mesa-btn {
   padding: 6px 10px;
 }
+
+.mesa-soundboard {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  background: rgba(28, 23, 18, 0.94);
+  border-top: 2px solid var(--brass);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+}
+
+.mesa-soundboard-lista {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.mesa-soundboard-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.mesa-soundboard-play {
+  white-space: nowrap;
+}
+
+.mesa-soundboard-upload {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mesa-soundboard-upload input {
+  color: var(--parchment);
+  font-size: 11px;
+  max-width: 180px;
+}

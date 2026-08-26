@@ -3,6 +3,7 @@ import { Stage, Layer, Line, Rect, Text, Transformer } from 'react-konva';
 import Token, { tokenColor } from './Token';
 import ChatPanel from './ChatPanel';
 import IniciativaPanel from './IniciativaPanel';
+import SoundboardPanel from './SoundboardPanel';
 import { sb } from './supabaseClient';
 
 const MIN_SCALE = 0.2;
@@ -49,6 +50,7 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
   const [ehMestre, setEhMestre] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showIniciativa, setShowIniciativa] = useState(false);
+  const [showSoundboard, setShowSoundboard] = useState(false);
   const [fogAtivo, setFogAtivo] = useState(false);
   const [fogRevelado, setFogRevelado] = useState([]);
   const [modoNevoa, setModoNevoa] = useState(null); // null | 'revelar' | 'esconder'
@@ -485,6 +487,9 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
         >
           {showIniciativa ? 'Fechar iniciativa' : 'Iniciativa'}
         </button>
+        <button className="mesa-btn" onClick={() => setShowSoundboard((v) => !v)}>
+          {showSoundboard ? 'Fechar sons' : 'Sons'}
+        </button>
         {ehMestre && (
           <>
             <button className={`mesa-btn ${fogAtivo ? 'mesa-btn--ativo' : ''}`} onClick={alternarFogAtivo}>
@@ -529,6 +534,9 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
           ehMestre={ehMestre}
           deslocado={showChat}
         />
+      )}
+      {showSoundboard && (
+        <SoundboardPanel cenaId={cenaId} campanhaId={campanhaId} ehMestre={ehMestre} />
       )}
 
       <Stage
