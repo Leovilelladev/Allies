@@ -1,4 +1,4 @@
-import { Circle, Group, Text } from 'react-konva';
+import { Circle, Group, RegularPolygon, Text } from 'react-konva';
 
 // Paleta de cores dos tokens, ciclando por índice (sem depender de imagem/token art ainda)
 const PALETTE = ['#7c2d2d', '#2d5a3d', '#2d4a7c', '#6b3d7c', '#7c5a2d', '#2d6b6b'];
@@ -29,6 +29,16 @@ export default function Token({ token, isSelected, onSelect, onDragEnd, shapeRef
         shadowColor="black"
         shadowBlur={6}
         shadowOpacity={0.5}
+      />
+      {/* Marcador de direção: mostra pra onde o token está "olhando" quando gira */}
+      <RegularPolygon
+        sides={3}
+        radius={7}
+        y={-token.radius - 3}
+        fill="#c79f57"
+        stroke="rgba(28, 23, 18, 0.6)"
+        strokeWidth={1}
+        listening={false}
       />
       <Text
         text={token.label}

@@ -31,8 +31,12 @@ function linhaParaToken(row) {
     radius: row.raio,
     color: row.cor,
     label: row.nome,
+    camada: row.camada ?? 0,
   };
 }
+
+// Ângulos que o Transformer "gruda" ao girar, de 15 em 15 graus
+const ROTATION_SNAPS = Array.from({ length: 24 }, (_, i) => i * 15);
 
 export default function MesaCanvas({ cenaId, campanhaId }) {
   const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -239,6 +243,22 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
     }
   }, []);
 
+  const mudarCamada = useCallback(
+    (direcao) => {
+      if (!selectedId) return;
+      const camadas = tokens.map((t) => t.camada ?? 0);
+      const novaCamada =
+        direcao === 'frente' ? Math.max(0, ...camadas) + 1 : Math.min(0, ...camadas) - 1;
+      setTokens((prev) => prev.map((t) => (t.id === selectedId ? { ...t, camada: novaCamada } : t)));
+      if (!selectedId.startsWith('temp-')) {
+        sb.from('mesa_tokens').update({ camada: novaCamada }).eq('id', selectedId).then(({ error }) => {
+          if (error) console.error('Falha ao mudar camada do token:', error.message);
+        });
+      }
+    },
+    [selectedId, tokens]
+  );
+
   const removeSelectedToken = useCallback(() => {
     if (!selectedId) return;
     const idParaRemover = selectedId;
@@ -322,6 +342,12 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
     return lines;
   }, [scale, stagePos, size]);
 
+  // Ordena por camada pra desenhar quem está "atrás" primeiro (embaixo)
+  const tokensOrdenados = useMemo(
+    () => [...tokens].sort((a, b) => (a.camada ?? 0) - (b.camada ?? 0)),
+    [tokens]
+  );
+
   return (
     <div className="mesa-wrap">
       <div className="mesa-topbar">
@@ -330,6 +356,12 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
         <button className="mesa-btn" onClick={addToken} disabled={sincronizando}>+ Token</button>
         <button className="mesa-btn" onClick={removeSelectedToken} disabled={!selectedId}>
           Remover token
+        </button>
+        <button className="mesa-btn" onClick={() => mudarCamada('frente')} disabled={!selectedId}>
+          Pra frente
+        </button>
+        <button className="mesa-btn" onClick={() => mudarCamada('atras')} disabled={!selectedId}>
+          Pra trás
         </button>
         <button className="mesa-btn" onClick={() => setShowChat((v) => !v)}>
           {showChat ? 'Fechar chat' : 'Chat'}
@@ -383,7 +415,7 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
         </Layer>
 
         <Layer>
-          {tokens.map((token) => (
+          {tokensOrdenados.map((token) => (
             <Token
               key={token.id}
               token={token}
@@ -397,7 +429,8 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
           ))}
           <Transformer
             ref={trRef}
-            rotateEnabled={false}
+            rotateEnabled
+            rotationSnaps={ROTATION_SNAPS}
             keepRatio
             boundBoxFunc={(oldBox, newBox) => {
               if (newBox.width < 20 || newBox.height < 20) return oldBox;
