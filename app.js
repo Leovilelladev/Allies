@@ -19,7 +19,7 @@ function $all(sel) { return Array.from(document.querySelectorAll(sel)); }
 let toastTimer = null;
 function toast(msg, tipo = 'info') {
   const el = $('#toast');
-  const icone = tipo === 'erro' ? '✕' : tipo === 'sucesso' ? '✓' : '❧';
+  const icone = tipo === 'erro' ? '✕' : tipo === 'sucesso' ? '✓' : '→';
   el.innerHTML = `<span class="toast-icon">${icone}</span><span>${msg}</span>`;
   el.classList.remove('toast-erro', 'toast-sucesso');
   if (tipo === 'erro') el.classList.add('toast-erro');
@@ -38,6 +38,26 @@ function hideAuthError() {
   $('#auth-error').classList.remove('visible');
 }
 
+// Modal de confirmação próprio — o confirm() nativo não aparece no navegador
+// embutido do VS Code e destoa do resto da interface.
+let confirmarResolve = null;
+function confirmar(titulo, texto, rotuloOk = 'Confirmar') {
+  $('#modal-confirmar-titulo').textContent = titulo;
+  $('#modal-confirmar-texto').textContent = texto;
+  $('#modal-confirmar-ok').textContent = rotuloOk;
+  $('#modal-confirmar').classList.add('visible');
+  return new Promise(resolve => { confirmarResolve = resolve; });
+}
+function fecharConfirmar(resposta) {
+  $('#modal-confirmar').classList.remove('visible');
+  if (confirmarResolve) { confirmarResolve(resposta); confirmarResolve = null; }
+}
+$('#modal-confirmar-ok').addEventListener('click', () => fecharConfirmar(true));
+$('#modal-confirmar-cancelar').addEventListener('click', () => fecharConfirmar(false));
+$('#modal-confirmar').addEventListener('click', (e) => {
+  if (e.target === $('#modal-confirmar')) fecharConfirmar(false);
+});
+
 function switchView(id) {
   $all('.view').forEach(v => v.classList.remove('active'));
   $(`#${id}`).classList.add('active');
@@ -53,16 +73,16 @@ $('#auth-switch-btn').addEventListener('click', () => {
   modoAuth = modoAuth === 'login' ? 'signup' : 'login';
   hideAuthError();
   if (modoAuth === 'signup') {
-    $('#auth-title').textContent = 'Forjar sua Conta';
-    $('#tome-sub').textContent = 'Escolha um nome de usuário e guarde-o bem.';
+    $('#auth-title').textContent = 'Criar conta';
+    $('#tome-sub').textContent = 'Escolha um nome de usuário e uma senha.';
     $('#field-nome').style.display = 'block';
     $('#nome').required = true;
     $('#auth-submit').textContent = 'Criar conta';
     $('#auth-switch-text').textContent = 'Já tem conta?';
     $('#auth-switch-btn').textContent = 'Entrar';
   } else {
-    $('#auth-title').textContent = 'Abrir o Grimório';
-    $('#tome-sub').textContent = 'Entre com seu nome de usuário para retomar a jornada.';
+    $('#auth-title').textContent = 'Entrar';
+    $('#tome-sub').textContent = 'Acesse suas campanhas, fichas e mesas.';
     $('#field-nome').style.display = 'none';
     $('#nome').required = false;
     $('#auth-submit').textContent = 'Entrar';
@@ -86,14 +106,14 @@ $('#auth-form').addEventListener('submit', async (e) => {
   const emailInterno = `${usuario}@allies.local`;
   const textoOriginal = btn.textContent;
   btn.disabled = true;
-  btn.textContent = modoAuth === 'signup' ? 'Forjando…' : 'Abrindo…';
+  btn.textContent = modoAuth === 'signup' ? 'Criando…' : 'Entrando…';
 
   const reabilitar = () => { btn.disabled = false; btn.textContent = textoOriginal; };
 
   try {
     if (modoAuth === 'signup') {
       const nome = $('#nome').value.trim();
-      if (!nome) { showAuthError('Diga o nome do seu aventureiro.'); reabilitar(); return; }
+      if (!nome) { showAuthError('Informe seu nome.'); reabilitar(); return; }
       const { data, error } = await sb.auth.signUp({ email: emailInterno, password: senha });
       if (error) throw error;
       if (data.user) {
@@ -168,41 +188,117 @@ async function carregarPerfis(ids) {
 }
 
 // ======================= CAMPANHAS =======================
+
+const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+// "23 ago · 20h" / "30 ago · 19h30" — nulo vira "A combinar"
+function formatarSessao(ts) {
+  if (!ts) return 'A combinar';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return 'A combinar';
+  const min = d.getMinutes();
+  const hora = min ? `${d.getHours()}h${String(min).padStart(2, '0')}` : `${d.getHours()}h`;
+  return `${d.getDate()} ${MESES[d.getMonth()]} · ${hora}`;
+}
+
+// timestamp ISO -> valor de <input type="datetime-local"> (que é hora local, sem fuso)
+function tsParaInputLocal(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+let fichasPorCampanha = {};
+
 async function carregarCampanhas() {
-  $('#dashboard-sub').textContent = 'carregando...';
+  $('#dashboard-sub').textContent = 'carregando…';
   const { data, error } = await sb.from('campanhas').select('*').order('criado_em', { ascending: false });
   if (error) { toast('Erro ao carregar campanhas', 'erro'); return; }
   campanhas = data || [];
+
+  // Contagem real de fichas por campanha (o RLS já limita ao que o usuário pode ver)
+  fichasPorCampanha = {};
+  const { data: fichasRows } = await sb.from('fichas').select('campanha_id');
+  (fichasRows || []).forEach(f => {
+    fichasPorCampanha[f.campanha_id] = (fichasPorCampanha[f.campanha_id] || 0) + 1;
+  });
+
   await carregarPerfis(campanhas.map(c => c.mestre_id));
   renderShelf();
-  $('#dashboard-sub').textContent = `${campanhas.length} campanha${campanhas.length === 1 ? '' : 's'} no códice`;
+  $('#dashboard-sub').textContent = resumoDashboard();
+}
+
+function resumoDashboard() {
+  const n = campanhas.length;
+  if (!n) return 'Nenhuma campanha ainda';
+  const partes = [`${n} campanha${n === 1 ? '' : 's'}`];
+
+  const comoMestre = campanhas.filter(c => c.mestre_id === currentUser?.id).length;
+  if (comoMestre) partes.push(`${comoMestre} como mestre`);
+
+  const agora = Date.now();
+  const proxima = campanhas
+    .map(c => c.proxima_sessao)
+    .filter(ts => ts && new Date(ts).getTime() >= agora)
+    .sort((a, b) => new Date(a) - new Date(b))[0];
+  if (proxima) {
+    const d = new Date(proxima);
+    partes.push(`próxima sessão em ${d.getDate()} ${MESES[d.getMonth()]}`);
+  }
+  return partes.join(' · ');
 }
 
 function renderShelf() {
   const shelf = $('#shelf');
+  const colunas = $('#dashboard-colunas');
+
   if (!campanhas.length) {
-    shelf.innerHTML = `<div class="empty-state">Nenhuma campanha ainda. Que tal fundar a primeira?</div>`;
+    colunas.style.display = 'none';
+    shelf.innerHTML = `<div class="empty-state">
+      <strong>Nenhuma campanha ainda</strong>
+      Crie a primeira e convide seus jogadores.
+    </div>`;
     return;
   }
-  shelf.innerHTML = campanhas.map(c => `
-    <div class="spine" data-id="${c.id}">
-      <div>
-        <h3>${escapeHtml(c.nome)}</h3>
-        <div class="sistema">${escapeHtml(c.sistema || 'Sistema livre')}</div>
-        <p>${escapeHtml((c.descricao || 'Sem descrição.').slice(0, 90))}</p>
+  colunas.style.display = '';
+
+  shelf.innerHTML = campanhas.map((c, i) => {
+    const nFichas = fichasPorCampanha[c.id] || 0;
+    return `
+    <div class="linha" data-id="${c.id}" role="button" tabindex="0">
+      <span class="linha-num num">${String(i + 1).padStart(2, '0')}</span>
+      <div class="linha-main">
+        <div class="linha-titulo">${escapeHtml(c.nome)}</div>
+        <div class="linha-desc">${escapeHtml(c.descricao || 'Sem descrição.')}</div>
       </div>
-      <div class="meta">Mestre: ${escapeHtml(profilesCache[c.mestre_id]?.nome || '—')}</div>
-    </div>
-  `).join('');
-  $all('.spine').forEach(el => el.addEventListener('click', () => abrirCampanha(el.dataset.id)));
+      <span class="chip-sistema">${escapeHtml(c.sistema || 'Livre')}</span>
+      <span class="linha-mestre">${escapeHtml(profilesCache[c.mestre_id]?.nome || '—')}</span>
+      <div>
+        <div class="linha-sessao num">${escapeHtml(formatarSessao(c.proxima_sessao))}</div>
+        <div class="cap linha-contagem">${nFichas} ficha${nFichas === 1 ? '' : 's'}</div>
+      </div>
+      <span class="linha-seta" aria-hidden="true">→</span>
+    </div>`;
+  }).join('');
+
+  $all('.linha[data-id]').forEach(el => {
+    const abrir = () => abrirCampanha(el.dataset.id);
+    el.addEventListener('click', abrir);
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrir(); }
+    });
+  });
 }
 
 $('#nova-campanha-btn').addEventListener('click', () => {
   campanhaEditando = null;
-  $('#modal-campanha-titulo').textContent = 'Nova Campanha';
+  $('#modal-campanha-titulo').textContent = 'Nova campanha';
   $('#camp-nome').value = '';
   $('#camp-sistema').value = '';
   $('#camp-desc').value = '';
+  $('#camp-proxima').value = '';
   $('#modal-campanha').classList.add('visible');
 });
 $('#modal-campanha-cancelar').addEventListener('click', () => $('#modal-campanha').classList.remove('visible'));
@@ -210,16 +306,19 @@ $('#modal-campanha-cancelar').addEventListener('click', () => $('#modal-campanha
 $('#editar-campanha-btn').addEventListener('click', () => {
   if (!campanhaAtual) return;
   campanhaEditando = campanhaAtual.id;
-  $('#modal-campanha-titulo').textContent = 'Editar Campanha';
+  $('#modal-campanha-titulo').textContent = 'Editar campanha';
   $('#camp-nome').value = campanhaAtual.nome;
   $('#camp-sistema').value = campanhaAtual.sistema || '';
   $('#camp-desc').value = campanhaAtual.descricao || '';
+  $('#camp-proxima').value = tsParaInputLocal(campanhaAtual.proxima_sessao);
   $('#modal-campanha').classList.add('visible');
 });
 
 $('#excluir-campanha-btn').addEventListener('click', async () => {
   if (!campanhaAtual) return;
-  if (!confirm(`Excluir a campanha "${campanhaAtual.nome}"? Isso também apaga todas as fichas dela. Não é possível desfazer.`)) return;
+  const ok = await confirmar('Excluir campanha',
+    `Excluir "${campanhaAtual.nome}"? Isso também apaga todas as fichas dela. Não é possível desfazer.`, 'Excluir');
+  if (!ok) return;
   const { error } = await sb.from('campanhas').delete().eq('id', campanhaAtual.id);
   if (error) { toast('Erro ao excluir campanha', 'erro'); return; }
   toast('Campanha excluída.', 'sucesso');
@@ -233,33 +332,41 @@ $('#form-campanha').addEventListener('submit', async (e) => {
   const nome = $('#camp-nome').value.trim();
   const sistema = $('#camp-sistema').value.trim();
   const descricao = $('#camp-desc').value.trim();
+  const proximaRaw = $('#camp-proxima').value;
+  const proxima_sessao = proximaRaw ? new Date(proximaRaw).toISOString() : null;
 
   let error;
   if (campanhaEditando) {
-    ({ error } = await sb.from('campanhas').update({ nome, sistema, descricao }).eq('id', campanhaEditando));
+    ({ error } = await sb.from('campanhas').update({ nome, sistema, descricao, proxima_sessao }).eq('id', campanhaEditando));
   } else {
-    ({ error } = await sb.from('campanhas').insert({ nome, sistema, descricao, mestre_id: currentUser.id }));
+    ({ error } = await sb.from('campanhas').insert({ nome, sistema, descricao, proxima_sessao, mestre_id: currentUser.id }));
   }
   if (error) { toast('Erro ao salvar campanha', 'erro'); return; }
   $('#modal-campanha').classList.remove('visible');
-  toast(campanhaEditando ? 'Campanha atualizada!' : 'Campanha fundada!');
+  toast(campanhaEditando ? 'Campanha atualizada.' : 'Campanha criada.', 'sucesso');
 
   if (campanhaEditando && campanhaAtual && campanhaEditando === campanhaAtual.id) {
-    campanhaAtual = { ...campanhaAtual, nome, sistema, descricao };
+    campanhaAtual = { ...campanhaAtual, nome, sistema, descricao, proxima_sessao };
     $('#campanha-nome').textContent = nome;
-    $('#campanha-sistema').textContent = sistema || 'Sistema livre';
+    $('#campanha-sistema').textContent = subtituloCampanha(campanhaAtual);
     $('#campanha-desc').textContent = descricao || '';
   }
   campanhaEditando = null;
   carregarCampanhas();
 });
 
+function subtituloCampanha(c) {
+  const partes = [c.sistema || 'Sistema livre'];
+  if (c.proxima_sessao) partes.push(`Próxima sessão: ${formatarSessao(c.proxima_sessao)}`);
+  return partes.join(' · ');
+}
+
 async function abrirCampanha(id) {
   const c = campanhas.find(c => c.id === id);
   if (!c) return;
   campanhaAtual = c;
   $('#campanha-nome').textContent = c.nome;
-  $('#campanha-sistema').textContent = c.sistema || 'Sistema livre';
+  $('#campanha-sistema').textContent = subtituloCampanha(c);
   $('#campanha-desc').textContent = c.descricao || '';
   const souMestre = c.mestre_id === currentUser.id;
   $('#editar-campanha-btn').style.display = souMestre ? 'inline-flex' : 'none';
@@ -315,7 +422,9 @@ $('#form-convidar').addEventListener('submit', async (e) => {
 
 $('#sair-campanha-btn').addEventListener('click', async () => {
   if (!campanhaAtual) return;
-  if (!confirm(`Sair da campanha "${campanhaAtual.nome}"?`)) return;
+  const ok = await confirmar('Sair da campanha',
+    `Você deixará de ver "${campanhaAtual.nome}" e as fichas dela.`, 'Sair');
+  if (!ok) return;
   const { error } = await sb.from('campanha_membros').delete().eq('campanha_id', campanhaAtual.id).eq('usuario_id', currentUser.id);
   if (error) { toast('Erro ao sair da campanha', 'erro'); return; }
   toast('Você saiu da campanha.', 'sucesso');
@@ -386,7 +495,8 @@ $('#nova-ficha-btn').addEventListener('click', async () => {
 });
 
 async function excluirFicha(id) {
-  if (!confirm('Excluir esta ficha? Não é possível desfazer.')) return;
+  const ok = await confirmar('Excluir ficha', 'Não é possível desfazer.', 'Excluir');
+  if (!ok) return;
   const { error } = await sb.from('fichas').delete().eq('id', id);
   if (error) { toast('Erro ao excluir', 'erro'); return; }
   toast('Ficha excluída.', 'sucesso');

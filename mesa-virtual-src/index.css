@@ -1,15 +1,38 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap');
+
+/* Mesa Virtual — mesmo sistema do site, em modo escuro.
+   O mapa de batalha pede fundo escuro (contraste com o mapa e menos brilho na
+   mesa), então aqui as superfícies invertem, mas a tipografia e o acento são
+   os mesmos do site. */
 
 :root {
-  --leather: #1c1712;
-  --leather-soft: #2e241c;
-  --brass: #a9813f;
-  --brass-bright: #c79f57;
-  --wax: #7c2d2d;
-  --wax-bright: #9c3b3b;
-  --parchment: #ebe0c3;
-  --font-display: 'Cinzel', serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --bg:        #17161a;
+  --bg-2:      #201f24;
+  --bg-3:      #2b2a30;
+
+  --text:      #f3f2f2;
+  --text-2:    #b8b5b5;
+  --text-3:    #8b8888;
+
+  --line:      #3a383f;
+  --line-2:    #4a484f;
+
+  --accent:       #ec3013;
+  --accent-hover: #ff4526;
+  --accent-soft:  rgba(236, 48, 19, 0.14);
+
+  --font: 'Archivo', system-ui, -apple-system, sans-serif;
+
+  /* nomes antigos mantidos para não quebrar regras que ainda os usam */
+  --leather: var(--bg);
+  --leather-soft: var(--bg-2);
+  --brass: var(--line-2);
+  --brass-bright: var(--text-2);
+  --wax: var(--accent);
+  --wax-bright: var(--accent-hover);
+  --parchment: var(--text);
+  --font-display: var(--font);
+  --font-mono: var(--font);
 }
 
 * { box-sizing: border-box; }
@@ -438,3 +461,213 @@ a.mesa-btn {
   font-size: 11px;
   max-width: 180px;
 }
+
+/* =========================================================
+   Ajustes do sistema modernista sobre os componentes da Mesa
+   (mesma tipografia e acento do site; superfícies escuras)
+   ========================================================= */
+
+html, body, #root { font-family: var(--font); background: var(--bg); }
+
+.mesa-topbar {
+  height: 56px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  padding: 0 20px;
+  gap: 12px;
+}
+
+.mesa-brand {
+  font-family: var(--font);
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  text-transform: uppercase;
+}
+.mesa-brand small {
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-3);
+  text-transform: uppercase;
+  margin-left: 10px;
+}
+
+.mesa-zoom, .mesa-sync {
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  opacity: 1;
+}
+
+/* Botões: contorno duro, sem raio; o acento marca o estado ativo */
+.mesa-btn {
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid var(--line-2);
+  color: var(--text-2);
+  background: none;
+  border-radius: 0;
+  padding: 8px 13px;
+  transition: background 0.12s linear, color 0.12s linear, border-color 0.12s linear;
+}
+.mesa-btn:hover { background: var(--bg-3); color: var(--text); border-color: var(--text-3); }
+.mesa-btn--ativo,
+.mesa-btn--ativo:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.mesa-select {
+  font-family: var(--font);
+  font-size: 12px;
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: 0;
+  color: var(--text-2);
+  padding: 7px 9px;
+}
+.mesa-select:focus { outline: none; border-color: var(--accent); }
+
+/* Painéis laterais */
+.mesa-chat {
+  top: 56px;
+  background: var(--bg-2);
+  border-left: 1px solid var(--line);
+}
+.mesa-chat-form { border-top: 1px solid var(--line); }
+.mesa-chat-form input,
+.mesa-iniciativa-form input {
+  font-family: var(--font);
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: 0;
+  color: var(--text);
+}
+.mesa-chat-form input:focus,
+.mesa-iniciativa-form input:focus { outline: none; border-color: var(--accent); }
+
+.mesa-chat-msg { color: var(--text); font-size: 14px; }
+.mesa-chat-autor {
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-3);
+}
+.mesa-chat-vazio { color: var(--text-3); font-style: normal; font-size: 13px; }
+.mesa-chat-msg--rolagem {
+  background: var(--accent-soft);
+  border: none;
+  border-left: 3px solid var(--accent);
+  border-radius: 0;
+  padding: 8px 10px;
+}
+.mesa-chat-msg--rolagem .mesa-chat-texto {
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.mesa-chat-erro, .mesa-login-erro { color: var(--accent-hover); font-family: var(--font); }
+
+.mesa-iniciativa {
+  top: 56px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 0;
+}
+.mesa-iniciativa-cabecalho {
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+  border-bottom: 1px solid var(--line);
+}
+.mesa-iniciativa-lista { padding: 8px 10px; }
+.mesa-iniciativa-item { border-radius: 0; border: 1px solid transparent; }
+.mesa-iniciativa-item--ativo {
+  background: var(--accent-soft);
+  border-color: transparent;
+  border-left: 3px solid var(--accent);
+}
+.mesa-iniciativa-valor {
+  font-family: var(--font);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.mesa-iniciativa-nome { color: var(--text); font-size: 14px; }
+.mesa-iniciativa-remover { color: var(--text-3); }
+.mesa-iniciativa-remover:hover { color: var(--accent); }
+.mesa-iniciativa-form { border-top: 1px solid var(--line); }
+
+.mesa-soundboard {
+  background: var(--bg-2);
+  border-top: 1px solid var(--line);
+}
+.mesa-soundboard-upload input { font-family: var(--font); color: var(--text-2); font-size: 12px; }
+
+/* Login isolado da Mesa (só aparece fora do domínio do site) */
+.mesa-msg-central { background: var(--bg); }
+.mesa-msg-central p { font-family: var(--font); font-size: 17px; color: var(--text-2); }
+
+.mesa-login {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 32px;
+}
+.mesa-login h1 {
+  font-family: var(--font);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  color: var(--text);
+  text-align: left;
+}
+.mesa-login h1 small {
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-3);
+}
+.mesa-login label {
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-3);
+}
+.mesa-login input {
+  font-family: var(--font);
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: 0;
+  color: var(--text);
+}
+.mesa-login input:focus { outline: none; border-color: var(--accent); }
+.mesa-login .mesa-btn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  padding: 12px;
+  font-size: 12px;
+}
+.mesa-login .mesa-btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--line-2); border: 3px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }

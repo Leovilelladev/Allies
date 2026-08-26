@@ -6,7 +6,7 @@
 <title>Allies — Campanhas de RPG</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -17,28 +17,22 @@
   <div class="auth-layout">
 
     <aside class="auth-hero">
+      <div class="hero-foot cap">Allies · Campanhas de RPG</div>
       <div class="auth-hero-inner">
         <h1 class="hero-title">Allies</h1>
-        <svg class="hero-mark" viewBox="0 0 72 18" aria-hidden="true">
-          <path d="M36 1.5 L41 9 L36 16.5 L31 9 Z" fill="currentColor"/>
-          <path d="M36 5.6 L38.6 9 L36 12.4 L33.4 9 Z" fill="var(--leather)"/>
-          <path d="M28 9 H12" stroke="currentColor" stroke-width="1.1" fill="none"/>
-          <path d="M44 9 H60" stroke="currentColor" stroke-width="1.1" fill="none"/>
-          <circle cx="8" cy="9" r="1.9" fill="currentColor"/>
-          <circle cx="64" cy="9" r="1.9" fill="currentColor"/>
-        </svg>
-        <p class="hero-tagline">Campanhas, fichas e mesas de batalha — reunidas num só grimório.</p>
+        <div class="hero-mark"></div>
+        <p class="hero-tagline">Campanhas, fichas e mesas de batalha num só lugar.</p>
       </div>
     </aside>
 
     <div class="auth-panel">
       <div class="tome">
-        <h2 id="auth-title">Abrir o Grimório</h2>
-        <p class="tome-sub" id="tome-sub">Entre com seu nome de usuário para retomar a jornada.</p>
+        <h2 id="auth-title">Entrar</h2>
+        <p class="tome-sub" id="tome-sub">Acesse suas campanhas, fichas e mesas.</p>
         <div class="auth-error" id="auth-error"></div>
         <form id="auth-form">
           <div class="field" id="field-nome" style="display:none;">
-            <label for="nome">Nome do aventureiro</label>
+            <label for="nome">Seu nome</label>
             <input type="text" id="nome" autocomplete="name" />
           </div>
           <div class="field">
@@ -65,11 +59,7 @@
 <div id="app">
   <header>
     <div class="brand">
-      <svg class="brand-mark" viewBox="0 0 18 18" aria-hidden="true">
-        <path d="M9 0.8 L14 9 L9 17.2 L4 9 Z" fill="currentColor"/>
-        <path d="M9 5.2 L11.6 9 L9 12.8 L6.4 9 Z" fill="var(--leather-2)"/>
-      </svg>
-      <span class="brand-name">Allies</span>
+      <span class="brand-name">ALLIES</span>
       <span class="brand-sep"></span>
       <small>Campanhas de RPG</small>
     </div>
@@ -82,23 +72,32 @@
   <main>
     <!-- View: Dashboard de campanhas -->
     <section class="view active" id="view-dashboard">
-      <div class="view-heading">
+      <div class="page-head">
         <div>
-          <h2>Suas Campanhas</h2>
-          <div class="sub" id="dashboard-sub">carregando...</div>
+          <h1>Suas campanhas</h1>
+          <p class="page-sub" id="dashboard-sub">carregando…</p>
         </div>
-        <button class="btn-brass" id="nova-campanha-btn">+ Nova Campanha</button>
+        <button class="btn-accent" id="nova-campanha-btn">Nova campanha</button>
       </div>
-      <div class="shelf" id="shelf"></div>
+      <div class="rule-strong"></div>
+      <div class="tabela-cab" id="dashboard-colunas">
+        <span class="cap">Nº</span>
+        <span class="cap">Campanha</span>
+        <span class="cap">Sistema</span>
+        <span class="cap">Mestre</span>
+        <span class="cap">Próxima sessão</span>
+        <span></span>
+      </div>
+      <div id="shelf"></div>
     </section>
 
     <!-- View: Detalhe da campanha -->
     <section class="view" id="view-campanha">
-      <button class="btn-link-back" id="voltar-dashboard-btn">← Voltar às campanhas</button>
-      <div class="view-heading">
+      <button class="btn-link-back" id="voltar-dashboard-btn">← Campanhas</button>
+      <div class="page-head">
         <div>
           <h2 id="campanha-nome"></h2>
-          <div class="sub" id="campanha-sistema"></div>
+          <p class="page-sub" id="campanha-sistema"></p>
         </div>
         <div class="heading-actions">
           <button class="btn-ghost-small" id="convidar-btn" style="display:none;">Convidar</button>
@@ -106,9 +105,10 @@
           <button class="btn-ghost-small btn-danger" id="excluir-campanha-btn" style="display:none;">Excluir</button>
           <button class="btn-ghost-small btn-danger" id="sair-campanha-btn" style="display:none;">Sair da campanha</button>
           <button class="btn-ghost-small" id="mesa-virtual-btn">Mesa Virtual</button>
-          <button class="btn-brass" id="nova-ficha-btn">+ Nova Ficha</button>
+          <button class="btn-accent" id="nova-ficha-btn">Nova ficha</button>
         </div>
       </div>
+      <div class="rule-strong"></div>
       <p class="campaign-desc" id="campanha-desc"></p>
       <div class="participantes" id="participantes"></div>
       <div class="card-grid" id="fichas-grid"></div>
@@ -121,7 +121,7 @@
         <input type="text" id="sheet-nome-personagem" class="sheet-nome-input" placeholder="Nome do personagem" />
         <div class="sheet-header-actions">
           <span class="sheet-readonly-note" id="sheet-readonly-note" style="display:none;">Somente leitura</span>
-          <button class="btn-brass" id="salvar-ficha-btn">Salvar Ficha</button>
+          <button class="btn-accent" id="salvar-ficha-btn">Salvar ficha</button>
         </div>
       </div>
 
@@ -292,7 +292,7 @@
 <!-- ============ MODAL: Nova/Editar Campanha ============ -->
 <div class="modal-backdrop" id="modal-campanha">
   <div class="modal">
-    <h3 id="modal-campanha-titulo">Nova Campanha</h3>
+    <h3 id="modal-campanha-titulo">Nova campanha</h3>
     <form id="form-campanha">
       <div class="field">
         <label for="camp-nome">Nome da campanha</label>
@@ -306,6 +306,10 @@
         <label for="camp-desc">Descrição</label>
         <textarea id="camp-desc" rows="3"></textarea>
       </div>
+      <div class="field">
+        <label for="camp-proxima">Próxima sessão (opcional)</label>
+        <input type="datetime-local" id="camp-proxima" />
+      </div>
       <div class="modal-actions">
         <button type="submit" class="btn-seal" style="flex:1;">Salvar</button>
         <button type="button" class="btn-text" id="modal-campanha-cancelar">Cancelar</button>
@@ -318,7 +322,7 @@
 <div class="modal-backdrop" id="modal-confirmar">
   <div class="modal">
     <h3 id="modal-confirmar-titulo">Confirmar</h3>
-    <p id="modal-confirmar-texto" style="color: var(--ink-soft); font-size: 14px; line-height: 1.5;"></p>
+    <p id="modal-confirmar-texto" style="color: var(--text-3); font-size: 15px; line-height: 1.55; margin: 0;"></p>
     <div class="modal-actions">
       <button type="button" class="btn-seal" id="modal-confirmar-ok" style="flex:1;">Confirmar</button>
       <button type="button" class="btn-text" id="modal-confirmar-cancelar">Cancelar</button>
@@ -329,7 +333,7 @@
 <!-- ============ MODAL: Nova Ficha ============ -->
 <div class="modal-backdrop" id="modal-nova-ficha">
   <div class="modal">
-    <h3>Nova Ficha</h3>
+    <h3>Nova ficha</h3>
     <form id="form-nova-ficha">
       <div class="field">
         <label for="nova-ficha-nome">Nome do personagem</label>
@@ -346,7 +350,7 @@
 <!-- ============ MODAL: Convidar Jogador ============ -->
 <div class="modal-backdrop" id="modal-convidar">
   <div class="modal">
-    <h3>Convidar Jogador</h3>
+    <h3>Convidar jogador</h3>
     <form id="form-convidar">
       <div class="field">
         <label for="convidar-usuario">Nome de usuário</label>

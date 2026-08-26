@@ -24,7 +24,7 @@ export default function Token({ token, isSelected, onSelect, onDragEnd, shapeRef
       <Circle
         radius={token.radius}
         fill={token.color}
-        stroke={isSelected ? '#c79f57' : 'rgba(235, 224, 195, 0.6)'}
+        stroke={isSelected ? '#ec3013' : 'rgba(243, 242, 242, 0.55)'}
         strokeWidth={isSelected ? 3 : 1.5}
         shadowColor="black"
         shadowBlur={6}
@@ -35,16 +35,16 @@ export default function Token({ token, isSelected, onSelect, onDragEnd, shapeRef
         sides={3}
         radius={7}
         y={-token.radius - 3}
-        fill="#c79f57"
-        stroke="rgba(28, 23, 18, 0.6)"
+        fill="#ec3013"
+        stroke="rgba(23, 22, 26, 0.65)"
         strokeWidth={1}
         listening={false}
       />
       <Text
         text={token.label}
-        fontFamily="'JetBrains Mono', monospace"
+        fontFamily="Archivo, system-ui, sans-serif"
         fontSize={13}
-        fill="#ebe0c3"
+        fill="#f3f2f2"
         width={token.radius * 2}
         height={token.radius * 2}
         align="center"

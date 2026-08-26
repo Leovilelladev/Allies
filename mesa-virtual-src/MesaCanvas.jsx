@@ -9,8 +9,8 @@ import { sb } from './supabaseClient';
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 4;
 const GRID_SIZE = 70; // px por célula no zoom 1x
-const GRID_COLOR = 'rgba(169, 129, 63, 0.28)'; // brass translúcido, tema Allies
-const GRID_COLOR_STRONG = 'rgba(169, 129, 63, 0.5)';
+const GRID_COLOR = 'rgba(243, 242, 242, 0.13)'; // grade neutra sobre fundo escuro
+const GRID_COLOR_STRONG = 'rgba(243, 242, 242, 0.26)';
 const TOKEN_RADIUS = 28; // precisa bater com o default da coluna "raio" no banco
 
 let contadorTokens = 0;
@@ -599,7 +599,7 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
             x={20}
             y={20}
             fontSize={16 / scale}
-            fontFamily="'JetBrains Mono', monospace"
+            fontFamily="Archivo, system-ui, sans-serif"
             fill="rgba(235, 224, 195, 0.35)"
           />
         </Layer>
