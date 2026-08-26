@@ -54,6 +54,7 @@ $('#auth-switch-btn').addEventListener('click', () => {
   hideAuthError();
   if (modoAuth === 'signup') {
     $('#auth-title').textContent = 'Forjar sua Conta';
+    $('#tome-sub').textContent = 'Escolha um nome de usuário e guarde-o bem.';
     $('#field-nome').style.display = 'block';
     $('#nome').required = true;
     $('#auth-submit').textContent = 'Criar conta';
@@ -61,6 +62,7 @@ $('#auth-switch-btn').addEventListener('click', () => {
     $('#auth-switch-btn').textContent = 'Entrar';
   } else {
     $('#auth-title').textContent = 'Abrir o Grimório';
+    $('#tome-sub').textContent = 'Entre com seu nome de usuário para retomar a jornada.';
     $('#field-nome').style.display = 'none';
     $('#nome').required = false;
     $('#auth-submit').textContent = 'Entrar';
