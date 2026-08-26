@@ -1,0 +1,5 @@
+node_modules/
+mesa-virtual-src/node_modules/
+mesa-virtual-src/dist/
+.obsidian/
+*.log

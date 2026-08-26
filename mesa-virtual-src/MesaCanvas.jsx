@@ -1,0 +1,391 @@
+import { useRef, useState, useCallback, useMemo, useEffect } from 'react';
+import { Stage, Layer, Line, Text, Transformer } from 'react-konva';
+import Token, { tokenColor } from './Token';
+import ChatPanel from './ChatPanel';
+import { sb } from './supabaseClient';
+
+const MIN_SCALE = 0.2;
+const MAX_SCALE = 4;
+const GRID_SIZE = 70; // px por célula no zoom 1x
+const GRID_COLOR = 'rgba(169, 129, 63, 0.28)'; // brass translúcido, tema Allies
+const GRID_COLOR_STRONG = 'rgba(169, 129, 63, 0.5)';
+const TOKEN_RADIUS = 28; // precisa bater com o default da coluna "raio" no banco
+
+let contadorTokens = 0;
+
+// Encaixa uma coordenada do "mundo" no centro da célula de grade mais próxima
+function snapToGrid(value) {
+  return Math.floor(value / GRID_SIZE) * GRID_SIZE + GRID_SIZE / 2;
+}
+
+// Converte uma linha da tabela mesa_tokens pro formato usado no canvas
+function linhaParaToken(row) {
+  return {
+    id: row.id,
+    x: row.x,
+    y: row.y,
+    rotation: row.rotacao,
+    scaleX: row.escala,
+    scaleY: row.escala,
+    radius: row.raio,
+    color: row.cor,
+    label: row.nome,
+  };
+}
+
+export default function MesaCanvas({ cenaId, campanhaId }) {
+  const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
+  const [tokens, setTokens] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [sincronizando, setSincronizando] = useState(true);
+  const [perfil, setPerfil] = useState(null);
+  const [showChat, setShowChat] = useState(false);
+  const isPanning = useRef(false);
+  const lastPointer = useRef({ x: 0, y: 0 });
+  const shapeRefs = useRef({});
+  const trRef = useRef(null);
+  const userIdRef = useRef(null);
+
+  // Reajusta o tamanho do stage quando a janela muda
+  useMemo(() => {
+    function onResize() {
+      setSize({ width: window.innerWidth, height: window.innerHeight });
+    }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // ---- Carrega tokens da cena e assina atualizações em tempo real ----
+  useEffect(() => {
+    let ativo = true;
+    if (!cenaId) return;
+
+    async function carregar() {
+      const { data: userData } = await sb.auth.getUser();
+      const uid = userData?.user?.id ?? null;
+      if (!ativo) return;
+      userIdRef.current = uid;
+
+      if (uid) {
+        const { data: perfilData } = await sb.from('profiles').select('nome, usuario').eq('id', uid).single();
+        if (ativo) {
+          setPerfil({ id: uid, nome: perfilData?.nome || perfilData?.usuario || 'Anônimo' });
+        }
+      }
+
+      const { data, error } = await sb.from('mesa_tokens').select('*').eq('cena_id', cenaId);
+      if (!ativo) return;
+      if (error) {
+        console.error('Falha ao carregar tokens da mesa:', error.message);
+      } else {
+        setTokens((data ?? []).map(linhaParaToken));
+      }
+      setSincronizando(false);
+    }
+    carregar();
+
+    const canal = sb
+      .channel(`mesa-tokens-${cenaId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'mesa_tokens', filter: `cena_id=eq.${cenaId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            setTokens((prev) => prev.filter((t) => t.id !== payload.old.id));
+            setSelectedId((prev) => (prev === payload.old.id ? null : prev));
+            return;
+          }
+          const token = linhaParaToken(payload.new);
+          setTokens((prev) => {
+            const existe = prev.some((t) => t.id === token.id);
+            return existe ? prev.map((t) => (t.id === token.id ? token : t)) : [...prev, token];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      ativo = false;
+      sb.removeChannel(canal);
+    };
+  }, [cenaId]);
+
+  // ---- Zoom com a roda do mouse, centrado no cursor ----
+  const handleWheel = useCallback((e) => {
+    e.evt.preventDefault();
+    const stage = e.target.getStage();
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+
+    const oldScale = scale;
+    const mousePointTo = {
+      x: (pointer.x - stagePos.x) / oldScale,
+      y: (pointer.y - stagePos.y) / oldScale,
+    };
+
+    const zoomIntensity = 1.08;
+    const direction = e.evt.deltaY > 0 ? -1 : 1;
+    let newScale = direction > 0 ? oldScale * zoomIntensity : oldScale / zoomIntensity;
+    newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+
+    setScale(newScale);
+    setStagePos({
+      x: pointer.x - mousePointTo.x * newScale,
+      y: pointer.y - mousePointTo.y * newScale,
+    });
+  }, [scale, stagePos]);
+
+  // ---- Pan: clicar e arrastar no fundo vazio ----
+  const handleMouseDown = useCallback((e) => {
+    if (e.target === e.target.getStage()) {
+      isPanning.current = true;
+      lastPointer.current = e.target.getStage().getPointerPosition();
+      setSelectedId(null);
+    }
+  }, []);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isPanning.current) return;
+    const stage = e.target.getStage();
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+    const dx = pointer.x - lastPointer.current.x;
+    const dy = pointer.y - lastPointer.current.y;
+    setStagePos((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+    lastPointer.current = pointer;
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    isPanning.current = false;
+  }, []);
+
+  function resetView() {
+    setScale(1);
+    setStagePos({ x: 0, y: 0 });
+  }
+
+  // ---- Tokens ----
+  const addToken = useCallback(async () => {
+    if (!cenaId || !userIdRef.current) return;
+    const worldCenterX = (size.width / 2 - stagePos.x) / scale;
+    const worldCenterY = (size.height / 2 - stagePos.y) / scale;
+    contadorTokens += 1;
+
+    const novaLinha = {
+      cena_id: cenaId,
+      nome: `T${contadorTokens}`,
+      cor: tokenColor(contadorTokens - 1),
+      x: snapToGrid(worldCenterX),
+      y: snapToGrid(worldCenterY),
+      rotacao: 0,
+      escala: 1,
+      raio: TOKEN_RADIUS,
+      criado_por: userIdRef.current,
+    };
+
+    // Otimista: mostra o token na hora, a linha real do banco chega pelo realtime e substitui
+    const idTemporario = `temp-${contadorTokens}`;
+    setTokens((prev) => [...prev, linhaParaToken({ id: idTemporario, ...novaLinha })]);
+    setSelectedId(idTemporario);
+
+    const { data, error } = await sb.from('mesa_tokens').insert(novaLinha).select().single();
+    if (error) {
+      console.error('Falha ao criar token:', error.message);
+      setTokens((prev) => prev.filter((t) => t.id !== idTemporario));
+      setSelectedId((prev) => (prev === idTemporario ? null : prev));
+      return;
+    }
+    setTokens((prev) => prev.map((t) => (t.id === idTemporario ? linhaParaToken(data) : t)));
+    setSelectedId(data.id);
+  }, [cenaId, size, stagePos, scale]);
+
+  const handleTokenDragEnd = useCallback(
+    (id, x, y) => {
+      const snapped = { x: snapToGrid(x), y: snapToGrid(y) };
+      setTokens((prev) => prev.map((t) => (t.id === id ? { ...t, ...snapped } : t)));
+      const node = shapeRefs.current[id];
+      if (node) node.position(snapped);
+      if (!id.startsWith('temp-')) {
+        sb.from('mesa_tokens').update(snapped).eq('id', id).then(({ error }) => {
+          if (error) console.error('Falha ao salvar posição do token:', error.message);
+        });
+      }
+    },
+    []
+  );
+
+  const handleTransformEnd = useCallback((id) => {
+    const node = shapeRefs.current[id];
+    if (!node) return;
+    const atualizado = { x: node.x(), y: node.y(), rotation: node.rotation(), scaleX: node.scaleX(), scaleY: node.scaleY() };
+    setTokens((prev) => prev.map((t) => (t.id === id ? { ...t, ...atualizado } : t)));
+    if (!id.startsWith('temp-')) {
+      sb.from('mesa_tokens')
+        .update({ x: atualizado.x, y: atualizado.y, rotacao: atualizado.rotation, escala: atualizado.scaleX })
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Falha ao salvar transformação do token:', error.message);
+        });
+    }
+  }, []);
+
+  const removeSelectedToken = useCallback(() => {
+    if (!selectedId) return;
+    const idParaRemover = selectedId;
+    setTokens((prev) => prev.filter((t) => t.id !== idParaRemover));
+    delete shapeRefs.current[idParaRemover];
+    setSelectedId(null);
+    if (!idParaRemover.startsWith('temp-')) {
+      sb.from('mesa_tokens')
+        .delete()
+        .eq('id', idParaRemover)
+        .then(({ error }) => {
+          if (error) console.error('Falha ao remover token:', error.message);
+        });
+    }
+  }, [selectedId]);
+
+  // Deletar/Backspace remove o token selecionado (só quando o foco não está em um input/textarea)
+  useEffect(() => {
+    function onKeyDown(e) {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        e.preventDefault();
+        removeSelectedToken();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedId, removeSelectedToken]);
+
+  // Liga o Transformer ao token selecionado
+  useEffect(() => {
+    const tr = trRef.current;
+    if (!tr) return;
+    const node = selectedId ? shapeRefs.current[selectedId] : null;
+    if (node) {
+      tr.nodes([node]);
+      tr.getLayer().batchDraw();
+    } else {
+      tr.nodes([]);
+    }
+  }, [selectedId, tokens.length]);
+
+  // ---- Grid ----
+  const gridLines = useMemo(() => {
+    const lines = [];
+    const cell = GRID_SIZE;
+
+    const viewLeft = -stagePos.x / scale;
+    const viewTop = -stagePos.y / scale;
+    const viewRight = viewLeft + size.width / scale;
+    const viewBottom = viewTop + size.height / scale;
+
+    const startX = Math.floor(viewLeft / cell) * cell;
+    const endX = Math.ceil(viewRight / cell) * cell;
+    const startY = Math.floor(viewTop / cell) * cell;
+    const endY = Math.ceil(viewBottom / cell) * cell;
+
+    for (let x = startX; x <= endX; x += cell) {
+      const strong = x % (cell * 5) === 0;
+      lines.push(
+        <Line
+          key={`v${x}`}
+          points={[x, startY, x, endY]}
+          stroke={strong ? GRID_COLOR_STRONG : GRID_COLOR}
+          strokeWidth={strong ? 1.4 / scale : 1 / scale}
+        />
+      );
+    }
+    for (let y = startY; y <= endY; y += cell) {
+      const strong = y % (cell * 5) === 0;
+      lines.push(
+        <Line
+          key={`h${y}`}
+          points={[startX, y, endX, y]}
+          stroke={strong ? GRID_COLOR_STRONG : GRID_COLOR}
+          strokeWidth={strong ? 1.4 / scale : 1 / scale}
+        />
+      );
+    }
+    return lines;
+  }, [scale, stagePos, size]);
+
+  return (
+    <div className="mesa-wrap">
+      <div className="mesa-topbar">
+        <a className="mesa-btn" href={`../index.html?campanha=${campanhaId}`}>← Campanha</a>
+        <span className="mesa-brand">Allies <small>Mesa Virtual</small></span>
+        <button className="mesa-btn" onClick={addToken} disabled={sincronizando}>+ Token</button>
+        <button className="mesa-btn" onClick={removeSelectedToken} disabled={!selectedId}>
+          Remover token
+        </button>
+        <button className="mesa-btn" onClick={() => setShowChat((v) => !v)}>
+          {showChat ? 'Fechar chat' : 'Chat'}
+        </button>
+        <span className="mesa-zoom">{Math.round(scale * 100)}%</span>
+        <button className="mesa-btn" onClick={resetView}>Centralizar</button>
+        {sincronizando && <span className="mesa-sync">Sincronizando…</span>}
+      </div>
+
+      {showChat && perfil && <ChatPanel cenaId={cenaId} userId={perfil.id} autorNome={perfil.nome} />}
+
+      <Stage
+        width={size.width}
+        height={size.height}
+        x={stagePos.x}
+        y={stagePos.y}
+        scaleX={scale}
+        scaleY={scale}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        className="mesa-stage"
+      >
+        <Layer listening={false}>
+          {gridLines}
+          <Text
+            text="Arraste para mover · role o mouse para zoom · + Token pra adicionar"
+            x={20}
+            y={20}
+            fontSize={16 / scale}
+            fontFamily="'JetBrains Mono', monospace"
+            fill="rgba(235, 224, 195, 0.35)"
+          />
+        </Layer>
+
+        <Layer>
+          {tokens.map((token) => (
+            <Token
+              key={token.id}
+              token={token}
+              isSelected={token.id === selectedId}
+              onSelect={() => setSelectedId(token.id)}
+              onDragEnd={handleTokenDragEnd}
+              shapeRef={(node) => {
+                if (node) shapeRefs.current[token.id] = node;
+              }}
+            />
+          ))}
+          <Transformer
+            ref={trRef}
+            rotateEnabled={false}
+            keepRatio
+            boundBoxFunc={(oldBox, newBox) => {
+              if (newBox.width < 20 || newBox.height < 20) return oldBox;
+              return newBox;
+            }}
+            onTransformEnd={() => {
+              if (selectedId) handleTransformEnd(selectedId);
+            }}
+          />
+        </Layer>
+      </Stage>
+    </div>
+  );
+}
