@@ -95,6 +95,13 @@ a.mesa-btn {
   align-items: center;
   text-decoration: none;
 }
+.mesa-btn--ativo {
+  background: var(--brass);
+  color: var(--leather);
+}
+.mesa-btn--ativo:hover {
+  background: var(--brass-bright);
+}
 .mesa-btn:disabled {
   opacity: 0.35;
   cursor: default;

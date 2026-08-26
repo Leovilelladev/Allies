@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useMemo, useEffect } from 'react';
-import { Stage, Layer, Line, Text, Transformer } from 'react-konva';
+import { Stage, Layer, Line, Rect, Text, Transformer } from 'react-konva';
 import Token, { tokenColor } from './Token';
 import ChatPanel from './ChatPanel';
 import IniciativaPanel from './IniciativaPanel';
@@ -49,11 +49,17 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
   const [ehMestre, setEhMestre] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showIniciativa, setShowIniciativa] = useState(false);
+  const [fogAtivo, setFogAtivo] = useState(false);
+  const [fogRevelado, setFogRevelado] = useState([]);
+  const [modoNevoa, setModoNevoa] = useState(null); // null | 'revelar' | 'esconder'
+  const [verComoJogador, setVerComoJogador] = useState(false);
   const isPanning = useRef(false);
+  const isPintandoNevoa = useRef(false);
   const lastPointer = useRef({ x: 0, y: 0 });
   const shapeRefs = useRef({});
   const trRef = useRef(null);
   const userIdRef = useRef(null);
+  const fogRevelaSetRef = useRef(new Set());
 
   // Reajusta o tamanho do stage quando a janela muda
   useMemo(() => {
@@ -94,6 +100,17 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
       } else {
         setTokens((data ?? []).map(linhaParaToken));
       }
+
+      const { data: cenaData } = await sb
+        .from('cenas')
+        .select('fog_ativo, fog_revelado')
+        .eq('id', cenaId)
+        .single();
+      if (ativo && cenaData) {
+        setFogAtivo(cenaData.fog_ativo);
+        setFogRevelado(cenaData.fog_revelado ?? []);
+      }
+
       setSincronizando(false);
     }
     carregar();
@@ -114,6 +131,14 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
             const existe = prev.some((t) => t.id === token.id);
             return existe ? prev.map((t) => (t.id === token.id ? token : t)) : [...prev, token];
           });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'cenas', filter: `id=eq.${cenaId}` },
+        (payload) => {
+          setFogAtivo(payload.new.fog_ativo);
+          setFogRevelado(payload.new.fog_revelado ?? []);
         }
       )
       .subscribe();
@@ -149,29 +174,96 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
     });
   }, [scale, stagePos]);
 
-  // ---- Pan: clicar e arrastar no fundo vazio ----
-  const handleMouseDown = useCallback((e) => {
-    if (e.target === e.target.getStage()) {
+  // Converte a posição do ponteiro (tela) pra chave "col,row" da célula da grade no "mundo"
+  const pointerParaCelula = useCallback(
+    (stage) => {
+      const pointer = stage.getPointerPosition();
+      if (!pointer) return null;
+      const worldX = (pointer.x - stagePos.x) / scale;
+      const worldY = (pointer.y - stagePos.y) / scale;
+      const col = Math.floor(worldX / GRID_SIZE);
+      const row = Math.floor(worldY / GRID_SIZE);
+      return `${col},${row}`;
+    },
+    [stagePos, scale]
+  );
+
+  const pintarCelula = useCallback(
+    (chave) => {
+      const set = fogRevelaSetRef.current;
+      const jaTem = set.has(chave);
+      if (modoNevoa === 'revelar' && jaTem) return;
+      if (modoNevoa === 'esconder' && !jaTem) return;
+      if (modoNevoa === 'revelar') set.add(chave);
+      else set.delete(chave);
+      setFogRevelado(Array.from(set));
+    },
+    [modoNevoa]
+  );
+
+  // ---- Pan (ou pintura de névoa) : clicar e arrastar no fundo vazio ----
+  const handleMouseDown = useCallback(
+    (e) => {
+      if (e.target !== e.target.getStage()) return;
+      if (modoNevoa && ehMestre) {
+        isPintandoNevoa.current = true;
+        fogRevelaSetRef.current = new Set(fogRevelado);
+        pintarCelula(pointerParaCelula(e.target.getStage()));
+        return;
+      }
       isPanning.current = true;
       lastPointer.current = e.target.getStage().getPointerPosition();
       setSelectedId(null);
-    }
-  }, []);
+    },
+    [modoNevoa, ehMestre, fogRevelado, pintarCelula, pointerParaCelula]
+  );
 
-  const handleMouseMove = useCallback((e) => {
-    if (!isPanning.current) return;
-    const stage = e.target.getStage();
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return;
-    const dx = pointer.x - lastPointer.current.x;
-    const dy = pointer.y - lastPointer.current.y;
-    setStagePos((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-    lastPointer.current = pointer;
-  }, []);
+  const handleMouseMove = useCallback(
+    (e) => {
+      if (isPintandoNevoa.current) {
+        pintarCelula(pointerParaCelula(e.target.getStage()));
+        return;
+      }
+      if (!isPanning.current) return;
+      const stage = e.target.getStage();
+      const pointer = stage.getPointerPosition();
+      if (!pointer) return;
+      const dx = pointer.x - lastPointer.current.x;
+      const dy = pointer.y - lastPointer.current.y;
+      setStagePos((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+      lastPointer.current = pointer;
+    },
+    [pintarCelula, pointerParaCelula]
+  );
 
   const handleMouseUp = useCallback(() => {
     isPanning.current = false;
-  }, []);
+    if (isPintandoNevoa.current) {
+      isPintandoNevoa.current = false;
+      sb.from('cenas')
+        .update({ fog_revelado: Array.from(fogRevelaSetRef.current) })
+        .eq('id', cenaId)
+        .then(({ error }) => {
+          if (error) console.error('Falha ao salvar névoa:', error.message);
+        });
+    }
+  }, [cenaId]);
+
+  const alternarFogAtivo = useCallback(() => {
+    const novoValor = !fogAtivo;
+    setFogAtivo(novoValor);
+    if (!novoValor) setModoNevoa(null);
+    sb.from('cenas').update({ fog_ativo: novoValor }).eq('id', cenaId).then(({ error }) => {
+      if (error) console.error('Falha ao alternar névoa:', error.message);
+    });
+  }, [fogAtivo, cenaId]);
+
+  const limparNevoa = useCallback(() => {
+    setFogRevelado([]);
+    sb.from('cenas').update({ fog_revelado: [] }).eq('id', cenaId).then(({ error }) => {
+      if (error) console.error('Falha ao limpar névoa:', error.message);
+    });
+  }, [cenaId]);
 
   function resetView() {
     setScale(1);
@@ -302,15 +394,23 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
     }
   }, [selectedId, tokens.length]);
 
+  // Retângulo visível atual, em coordenadas do "mundo" (antes do scale/posição do stage)
+  const limitesVisiveis = useMemo(() => {
+    const viewLeft = -stagePos.x / scale;
+    const viewTop = -stagePos.y / scale;
+    return {
+      viewLeft,
+      viewTop,
+      viewRight: viewLeft + size.width / scale,
+      viewBottom: viewTop + size.height / scale,
+    };
+  }, [stagePos, scale, size]);
+
   // ---- Grid ----
   const gridLines = useMemo(() => {
     const lines = [];
     const cell = GRID_SIZE;
-
-    const viewLeft = -stagePos.x / scale;
-    const viewTop = -stagePos.y / scale;
-    const viewRight = viewLeft + size.width / scale;
-    const viewBottom = viewTop + size.height / scale;
+    const { viewLeft, viewTop, viewRight, viewBottom } = limitesVisiveis;
 
     const startX = Math.floor(viewLeft / cell) * cell;
     const endX = Math.ceil(viewRight / cell) * cell;
@@ -340,7 +440,20 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
       );
     }
     return lines;
-  }, [scale, stagePos, size]);
+  }, [limitesVisiveis]);
+
+  // Buracos de névoa revelados que caem dentro da área visível atual
+  const buracosDeNevoaVisiveis = useMemo(() => {
+    if (!fogAtivo || fogRevelado.length === 0) return [];
+    const { viewLeft, viewTop, viewRight, viewBottom } = limitesVisiveis;
+    const colMin = Math.floor(viewLeft / GRID_SIZE) - 1;
+    const colMax = Math.ceil(viewRight / GRID_SIZE) + 1;
+    const rowMin = Math.floor(viewTop / GRID_SIZE) - 1;
+    const rowMax = Math.ceil(viewBottom / GRID_SIZE) + 1;
+    return fogRevelado
+      .map((chave) => chave.split(',').map(Number))
+      .filter(([col, row]) => col >= colMin && col <= colMax && row >= rowMin && row <= rowMax);
+  }, [fogAtivo, fogRevelado, limitesVisiveis]);
 
   // Ordena por camada pra desenhar quem está "atrás" primeiro (embaixo)
   const tokensOrdenados = useMemo(
@@ -372,6 +485,36 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
         >
           {showIniciativa ? 'Fechar iniciativa' : 'Iniciativa'}
         </button>
+        {ehMestre && (
+          <>
+            <button className={`mesa-btn ${fogAtivo ? 'mesa-btn--ativo' : ''}`} onClick={alternarFogAtivo}>
+              Névoa: {fogAtivo ? 'Ligada' : 'Desligada'}
+            </button>
+            {fogAtivo && (
+              <>
+                <button
+                  className={`mesa-btn ${modoNevoa === 'revelar' ? 'mesa-btn--ativo' : ''}`}
+                  onClick={() => setModoNevoa((m) => (m === 'revelar' ? null : 'revelar'))}
+                >
+                  Revelar
+                </button>
+                <button
+                  className={`mesa-btn ${modoNevoa === 'esconder' ? 'mesa-btn--ativo' : ''}`}
+                  onClick={() => setModoNevoa((m) => (m === 'esconder' ? null : 'esconder'))}
+                >
+                  Esconder
+                </button>
+                <button className="mesa-btn" onClick={limparNevoa}>Limpar névoa</button>
+                <button
+                  className={`mesa-btn ${verComoJogador ? 'mesa-btn--ativo' : ''}`}
+                  onClick={() => setVerComoJogador((v) => !v)}
+                >
+                  Ver como jogador
+                </button>
+              </>
+            )}
+          </>
+        )}
         <span className="mesa-zoom">{Math.round(scale * 100)}%</span>
         <button className="mesa-btn" onClick={resetView}>Centralizar</button>
         {sincronizando && <span className="mesa-sync">Sincronizando…</span>}
@@ -441,6 +584,30 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
             }}
           />
         </Layer>
+
+        {fogAtivo && (
+          <Layer listening={false}>
+            <Rect
+              x={limitesVisiveis.viewLeft}
+              y={limitesVisiveis.viewTop}
+              width={limitesVisiveis.viewRight - limitesVisiveis.viewLeft}
+              height={limitesVisiveis.viewBottom - limitesVisiveis.viewTop}
+              fill="#000000"
+              opacity={ehMestre && !verComoJogador ? 0.4 : 1}
+            />
+            {buracosDeNevoaVisiveis.map(([col, row]) => (
+              <Rect
+                key={`${col},${row}`}
+                x={col * GRID_SIZE}
+                y={row * GRID_SIZE}
+                width={GRID_SIZE}
+                height={GRID_SIZE}
+                fill="#000000"
+                globalCompositeOperation="destination-out"
+              />
+            ))}
+          </Layer>
+        )}
       </Stage>
     </div>
   );
