@@ -102,6 +102,17 @@ a.mesa-btn {
 .mesa-btn--ativo:hover {
   background: var(--brass-bright);
 }
+
+.mesa-select {
+  background: var(--leather);
+  border: 1px solid var(--brass);
+  color: var(--brass-bright);
+  padding: 6px 8px;
+  font-size: 11px;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  max-width: 160px;
+}
 .mesa-btn:disabled {
   opacity: 0.35;
   cursor: default;

@@ -33,6 +33,7 @@ function linhaParaToken(row) {
     color: row.cor,
     label: row.nome,
     camada: row.camada ?? 0,
+    fichaId: row.ficha_id ?? null,
   };
 }
 
@@ -51,6 +52,7 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
   const [showChat, setShowChat] = useState(false);
   const [showIniciativa, setShowIniciativa] = useState(false);
   const [showSoundboard, setShowSoundboard] = useState(false);
+  const [fichas, setFichas] = useState([]);
   const [fogAtivo, setFogAtivo] = useState(false);
   const [fogRevelado, setFogRevelado] = useState([]);
   const [modoNevoa, setModoNevoa] = useState(null); // null | 'revelar' | 'esconder'
@@ -93,6 +95,12 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
       if (uid && campanhaId) {
         const { data: campanhaData } = await sb.from('campanhas').select('mestre_id').eq('id', campanhaId).single();
         if (ativo) setEhMestre(campanhaData?.mestre_id === uid);
+
+        const { data: fichasData } = await sb
+          .from('fichas')
+          .select('id, nome_personagem')
+          .eq('campanha_id', campanhaId);
+        if (ativo) setFichas(fichasData ?? []);
       }
 
       const { data, error } = await sb.from('mesa_tokens').select('*').eq('cena_id', cenaId);
@@ -353,6 +361,20 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
     [selectedId, tokens]
   );
 
+  const vincularFicha = useCallback(
+    (fichaId) => {
+      if (!selectedId) return;
+      const valor = fichaId || null;
+      setTokens((prev) => prev.map((t) => (t.id === selectedId ? { ...t, fichaId: valor } : t)));
+      if (!selectedId.startsWith('temp-')) {
+        sb.from('mesa_tokens').update({ ficha_id: valor }).eq('id', selectedId).then(({ error }) => {
+          if (error) console.error('Falha ao vincular ficha ao token:', error.message);
+        });
+      }
+    },
+    [selectedId]
+  );
+
   const removeSelectedToken = useCallback(() => {
     if (!selectedId) return;
     const idParaRemover = selectedId;
@@ -457,6 +479,8 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
       .filter(([col, row]) => col >= colMin && col <= colMax && row >= rowMin && row <= rowMax);
   }, [fogAtivo, fogRevelado, limitesVisiveis]);
 
+  const tokenSelecionado = useMemo(() => tokens.find((t) => t.id === selectedId) ?? null, [tokens, selectedId]);
+
   // Ordena por camada pra desenhar quem está "atrás" primeiro (embaixo)
   const tokensOrdenados = useMemo(
     () => [...tokens].sort((a, b) => (a.camada ?? 0) - (b.camada ?? 0)),
@@ -478,6 +502,21 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
         <button className="mesa-btn" onClick={() => mudarCamada('atras')} disabled={!selectedId}>
           Pra trás
         </button>
+        {ehMestre && selectedId && (
+          <select
+            className="mesa-select"
+            value={tokenSelecionado?.fichaId || ''}
+            onChange={(e) => vincularFicha(e.target.value)}
+            title="Vincular este token a uma ficha (o dono da ficha também pode controlá-lo)"
+          >
+            <option value="">Sem ficha vinculada</option>
+            {fichas.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.nome_personagem}
+              </option>
+            ))}
+          </select>
+        )}
         <button className="mesa-btn" onClick={() => setShowChat((v) => !v)}>
           {showChat ? 'Fechar chat' : 'Chat'}
         </button>
