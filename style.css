@@ -475,6 +475,112 @@ main {
   font-weight: 700;
 }
 
+/* ---------- Seções da página da campanha ---------- */
+
+.secao-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 46px 0 2px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--text);
+}
+.secao-head + .card-grid { margin-top: 22px; }
+
+.secao-titulo {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+  margin: 0;
+}
+
+/* Lista de sessões: mesma gramática da tabela de campanhas */
+.sessao-linha {
+  display: grid;
+  grid-template-columns: 52px minmax(200px, 1fr) 150px auto;
+  gap: 16px;
+  align-items: baseline;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.sessao-num {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.sessao-nome {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.sessao-nome.sem-nome { color: var(--text-4); font-weight: 500; font-style: italic; }
+
+.sessao-resumo {
+  font-size: 14px;
+  color: var(--text-3);
+  margin-top: 5px;
+  max-width: 68ch;
+}
+
+.sessao-data {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+.sessao-data.a-combinar { font-weight: 500; color: var(--text-4); }
+
+.sessao-mapas {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-4);
+  margin-top: 4px;
+}
+
+.sessao-acoes { display: flex; gap: 8px; }
+.sessao-acoes button {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--line-strong);
+  color: var(--text-2);
+  padding: 6px 11px;
+  cursor: pointer;
+  transition: background 0.12s linear, color 0.12s linear, border-color 0.12s linear;
+}
+.sessao-acoes button:hover { background: var(--text); color: var(--surface); border-color: var(--text); }
+.sessao-acoes button.excluir:hover { background: var(--accent); border-color: var(--accent); }
+
+.sessoes-vazio {
+  padding: 32px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-3);
+  font-size: 15px;
+}
+
+@media (max-width: 760px) {
+  .sessao-linha {
+    grid-template-columns: 44px 1fr;
+    grid-template-areas: "num main" ".  data" ".  acoes";
+    row-gap: 10px;
+  }
+  .sessao-num { grid-area: num; }
+  .sessao-main { grid-area: main; }
+  .sessao-quando { grid-area: data; }
+  .sessao-acoes { grid-area: acoes; }
+}
+
 /* ---------- Fichas ---------- */
 
 .card-grid {

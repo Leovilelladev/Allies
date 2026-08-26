@@ -671,3 +671,75 @@ html, body, #root { font-family: var(--font); background: var(--bg); }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--line-2); border: 3px solid var(--bg); }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+/* ---------- Seletor de sessão/mapa e modal de nome ---------- */
+
+.mesa-topbar-sep {
+  width: 1px;
+  height: 22px;
+  background: var(--line-2);
+  flex: none;
+  margin: 0 4px;
+}
+
+/* A topbar ficou mais cheia: deixa rolar em vez de espremer os controles */
+.mesa-topbar { overflow-x: auto; scrollbar-width: thin; }
+.mesa-topbar > * { flex: none; }
+
+.mesa-select[title="Sessão"] { max-width: 220px; font-weight: 600; }
+.mesa-select[title="Mapa"] { max-width: 170px; }
+
+.mesa-modal-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(10, 9, 12, 0.72);
+}
+
+.mesa-modal {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 28px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+}
+
+.mesa-modal h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+.mesa-modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.mesa-modal input {
+  font-family: var(--font);
+  font-size: 15px;
+  padding: 11px 12px;
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: 0;
+  color: var(--text);
+}
+.mesa-modal input:focus { outline: none; border-color: var(--accent); }
+
+.mesa-modal-acoes { display: flex; gap: 10px; }
+.mesa-modal-acoes .mesa-btn { flex: 1; padding: 11px; text-align: center; justify-content: center; }

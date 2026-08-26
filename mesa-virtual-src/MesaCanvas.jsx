@@ -40,7 +40,7 @@ function linhaParaToken(row) {
 // Ângulos que o Transformer "gruda" ao girar, de 15 em 15 graus
 const ROTATION_SNAPS = Array.from({ length: 24 }, (_, i) => i * 15);
 
-export default function MesaCanvas({ cenaId, campanhaId }) {
+export default function MesaCanvas({ cenaId, campanhaId, seletor }) {
   const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
@@ -492,6 +492,8 @@ export default function MesaCanvas({ cenaId, campanhaId }) {
       <div className="mesa-topbar">
         <a className="mesa-btn" href={`../index.html?campanha=${campanhaId}`}>← Campanha</a>
         <span className="mesa-brand">Allies <small>Mesa Virtual</small></span>
+        {seletor}
+        <span className="mesa-topbar-sep" />
         <button className="mesa-btn" onClick={addToken} disabled={sincronizando}>+ Token</button>
         <button className="mesa-btn" onClick={removeSelectedToken} disabled={!selectedId}>
           Remover token

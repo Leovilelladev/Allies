@@ -211,6 +211,7 @@ function tsParaInputLocal(ts) {
 }
 
 let fichasPorCampanha = {};
+let proximaSessaoPorCampanha = {};
 
 async function carregarCampanhas() {
   $('#dashboard-sub').textContent = 'carregando…';
@@ -225,6 +226,21 @@ async function carregarCampanhas() {
     fichasPorCampanha[f.campanha_id] = (fichasPorCampanha[f.campanha_id] || 0) + 1;
   });
 
+  // "Próxima sessão" é derivada da sessão futura mais próxima — não existe mais
+  // uma coluna solta em campanhas, que viraria uma segunda fonte de verdade.
+  proximaSessaoPorCampanha = {};
+  const agora = Date.now();
+  const { data: sessoesRows } = await sb
+    .from('sessoes').select('campanha_id, data').not('data', 'is', null);
+  (sessoesRows || [])
+    .filter(s => new Date(s.data).getTime() >= agora)
+    .forEach(s => {
+      const atual = proximaSessaoPorCampanha[s.campanha_id];
+      if (!atual || new Date(s.data) < new Date(atual)) {
+        proximaSessaoPorCampanha[s.campanha_id] = s.data;
+      }
+    });
+
   await carregarPerfis(campanhas.map(c => c.mestre_id));
   renderShelf();
   $('#dashboard-sub').textContent = resumoDashboard();
@@ -238,10 +254,7 @@ function resumoDashboard() {
   const comoMestre = campanhas.filter(c => c.mestre_id === currentUser?.id).length;
   if (comoMestre) partes.push(`${comoMestre} como mestre`);
 
-  const agora = Date.now();
-  const proxima = campanhas
-    .map(c => c.proxima_sessao)
-    .filter(ts => ts && new Date(ts).getTime() >= agora)
+  const proxima = Object.values(proximaSessaoPorCampanha)
     .sort((a, b) => new Date(a) - new Date(b))[0];
   if (proxima) {
     const d = new Date(proxima);
@@ -276,7 +289,7 @@ function renderShelf() {
       <span class="chip-sistema">${escapeHtml(c.sistema || 'Livre')}</span>
       <span class="linha-mestre">${escapeHtml(profilesCache[c.mestre_id]?.nome || '—')}</span>
       <div>
-        <div class="linha-sessao num">${escapeHtml(formatarSessao(c.proxima_sessao))}</div>
+        <div class="linha-sessao num">${escapeHtml(formatarSessao(proximaSessaoPorCampanha[c.id]))}</div>
         <div class="cap linha-contagem">${nFichas} ficha${nFichas === 1 ? '' : 's'}</div>
       </div>
       <span class="linha-seta" aria-hidden="true">→</span>
@@ -298,7 +311,6 @@ $('#nova-campanha-btn').addEventListener('click', () => {
   $('#camp-nome').value = '';
   $('#camp-sistema').value = '';
   $('#camp-desc').value = '';
-  $('#camp-proxima').value = '';
   $('#modal-campanha').classList.add('visible');
 });
 $('#modal-campanha-cancelar').addEventListener('click', () => $('#modal-campanha').classList.remove('visible'));
@@ -310,7 +322,6 @@ $('#editar-campanha-btn').addEventListener('click', () => {
   $('#camp-nome').value = campanhaAtual.nome;
   $('#camp-sistema').value = campanhaAtual.sistema || '';
   $('#camp-desc').value = campanhaAtual.descricao || '';
-  $('#camp-proxima').value = tsParaInputLocal(campanhaAtual.proxima_sessao);
   $('#modal-campanha').classList.add('visible');
 });
 
@@ -332,21 +343,19 @@ $('#form-campanha').addEventListener('submit', async (e) => {
   const nome = $('#camp-nome').value.trim();
   const sistema = $('#camp-sistema').value.trim();
   const descricao = $('#camp-desc').value.trim();
-  const proximaRaw = $('#camp-proxima').value;
-  const proxima_sessao = proximaRaw ? new Date(proximaRaw).toISOString() : null;
 
   let error;
   if (campanhaEditando) {
-    ({ error } = await sb.from('campanhas').update({ nome, sistema, descricao, proxima_sessao }).eq('id', campanhaEditando));
+    ({ error } = await sb.from('campanhas').update({ nome, sistema, descricao }).eq('id', campanhaEditando));
   } else {
-    ({ error } = await sb.from('campanhas').insert({ nome, sistema, descricao, proxima_sessao, mestre_id: currentUser.id }));
+    ({ error } = await sb.from('campanhas').insert({ nome, sistema, descricao, mestre_id: currentUser.id }));
   }
   if (error) { toast('Erro ao salvar campanha', 'erro'); return; }
   $('#modal-campanha').classList.remove('visible');
   toast(campanhaEditando ? 'Campanha atualizada.' : 'Campanha criada.', 'sucesso');
 
   if (campanhaEditando && campanhaAtual && campanhaEditando === campanhaAtual.id) {
-    campanhaAtual = { ...campanhaAtual, nome, sistema, descricao, proxima_sessao };
+    campanhaAtual = { ...campanhaAtual, nome, sistema, descricao };
     $('#campanha-nome').textContent = nome;
     $('#campanha-sistema').textContent = subtituloCampanha(campanhaAtual);
     $('#campanha-desc').textContent = descricao || '';
@@ -357,7 +366,8 @@ $('#form-campanha').addEventListener('submit', async (e) => {
 
 function subtituloCampanha(c) {
   const partes = [c.sistema || 'Sistema livre'];
-  if (c.proxima_sessao) partes.push(`Próxima sessão: ${formatarSessao(c.proxima_sessao)}`);
+  const prox = proximaSessaoPorCampanha[c.id];
+  if (prox) partes.push(`Próxima sessão: ${formatarSessao(prox)}`);
   return partes.join(' · ');
 }
 
@@ -373,9 +383,157 @@ async function abrirCampanha(id) {
   $('#excluir-campanha-btn').style.display = souMestre ? 'inline-flex' : 'none';
   $('#convidar-btn').style.display = souMestre ? 'inline-flex' : 'none';
   $('#sair-campanha-btn').style.display = souMestre ? 'none' : 'inline-flex';
+  $('#nova-sessao-btn').style.display = souMestre ? 'inline-flex' : 'none';
   switchView('view-campanha');
   await carregarParticipantes(id);
+  await carregarSessoes(id);
   await carregarFichas(id);
+}
+
+// ======================= SESSÕES =======================
+
+let sessoes = [];
+let sessaoEditando = null;
+
+// "12 set · 20h" — sem hora quando é meia-noite em ponto (data marcada sem horário)
+function formatarDataSessao(ts) {
+  if (!ts) return null;
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return null;
+  const base = `${d.getDate()} ${MESES[d.getMonth()]}`;
+  if (!d.getHours() && !d.getMinutes()) return base;
+  const min = d.getMinutes();
+  return `${base} · ${min ? `${d.getHours()}h${String(min).padStart(2, '0')}` : `${d.getHours()}h`}`;
+}
+
+async function carregarSessoes(campanhaId) {
+  const { data, error } = await sb
+    .from('sessoes')
+    .select('*, cenas(id)')
+    .eq('campanha_id', campanhaId)
+    .order('numero', { ascending: true });
+  if (error) { toast('Erro ao carregar sessões', 'erro'); sessoes = []; }
+  else sessoes = data || [];
+  renderSessoes();
+}
+
+function renderSessoes() {
+  const el = $('#sessoes-lista');
+  const souMestre = campanhaAtual && campanhaAtual.mestre_id === currentUser.id;
+
+  if (!sessoes.length) {
+    el.innerHTML = `<div class="sessoes-vazio">${
+      souMestre
+        ? 'Nenhuma sessão ainda. Crie a S01 para começar a montar os mapas.'
+        : 'O mestre ainda não abriu nenhuma sessão.'
+    }</div>`;
+    return;
+  }
+
+  el.innerHTML = sessoes.map(s => {
+    const nMapas = (s.cenas || []).length;
+    const quando = formatarDataSessao(s.data);
+    return `
+    <div class="sessao-linha" data-id="${s.id}">
+      <span class="sessao-num">S${String(s.numero).padStart(2, '0')}</span>
+      <div class="sessao-main">
+        <div class="sessao-nome${s.nome ? '' : ' sem-nome'}">${escapeHtml(s.nome || 'Sem nome')}</div>
+        ${s.resumo ? `<div class="sessao-resumo">${escapeHtml(s.resumo)}</div>` : ''}
+      </div>
+      <div class="sessao-quando">
+        <div class="sessao-data${quando ? '' : ' a-combinar'}">${escapeHtml(quando || 'A combinar')}</div>
+        <div class="sessao-mapas">${nMapas} mapa${nMapas === 1 ? '' : 's'}</div>
+      </div>
+      <div class="sessao-acoes">
+        <button data-acao="abrir">Abrir mesa</button>
+        ${souMestre ? `<button data-acao="editar">Editar</button>
+        <button data-acao="excluir" class="excluir">Excluir</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  $all('#sessoes-lista .sessao-linha').forEach(linha => {
+    const s = sessoes.find(x => x.id === linha.dataset.id);
+    linha.querySelectorAll('button[data-acao]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.acao === 'abrir') {
+          window.location.href = `mesa/index.html?campanha=${campanhaAtual.id}&sessao=${s.id}`;
+        } else if (btn.dataset.acao === 'editar') {
+          abrirModalSessao(s);
+        } else {
+          excluirSessao(s);
+        }
+      });
+    });
+  });
+}
+
+function abrirModalSessao(s) {
+  sessaoEditando = s ? s.id : null;
+  $('#modal-sessao-titulo').textContent = s ? `Editar S${String(s.numero).padStart(2, '0')}` : 'Nova sessão';
+  $('#sessao-numero').value = s ? s.numero : proximoNumeroSessao();
+  $('#sessao-nome').value = s ? (s.nome || '') : '';
+  $('#sessao-data').value = s ? tsParaInputLocal(s.data) : '';
+  $('#sessao-resumo').value = s ? (s.resumo || '') : '';
+  $('#modal-sessao').classList.add('visible');
+}
+
+function proximoNumeroSessao() {
+  return sessoes.length ? Math.max(...sessoes.map(s => s.numero)) + 1 : 1;
+}
+
+$('#nova-sessao-btn').addEventListener('click', () => abrirModalSessao(null));
+$('#modal-sessao-cancelar').addEventListener('click', () => $('#modal-sessao').classList.remove('visible'));
+
+$('#form-sessao').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!campanhaAtual) return;
+  const numero = parseInt($('#sessao-numero').value, 10);
+  if (!numero || numero < 1) { toast('Número da sessão inválido', 'erro'); return; }
+  const nome = $('#sessao-nome').value.trim();
+  const resumo = $('#sessao-resumo').value.trim();
+  const dataRaw = $('#sessao-data').value;
+  const data = dataRaw ? new Date(dataRaw).toISOString() : null;
+
+  let error;
+  if (sessaoEditando) {
+    ({ error } = await sb.from('sessoes').update({ numero, nome, data, resumo }).eq('id', sessaoEditando));
+  } else {
+    ({ error } = await sb.from('sessoes').insert({ campanha_id: campanhaAtual.id, numero, nome, data, resumo }));
+  }
+
+  if (error) {
+    // unique (campanha_id, numero)
+    if (error.code === '23505') toast(`Já existe uma S${String(numero).padStart(2, '0')} nessa campanha`, 'erro');
+    else toast('Erro ao salvar sessão', 'erro');
+    return;
+  }
+
+  $('#modal-sessao').classList.remove('visible');
+  toast(sessaoEditando ? 'Sessão atualizada.' : 'Sessão criada.', 'sucesso');
+  sessaoEditando = null;
+  await carregarSessoes(campanhaAtual.id);
+  await carregarCampanhas();
+  $('#campanha-sistema').textContent = subtituloCampanha(campanhaAtual);
+});
+
+async function excluirSessao(s) {
+  const nMapas = (s.cenas || []).length;
+  const aviso = nMapas
+    ? ` Os ${nMapas} mapa${nMapas === 1 ? '' : 's'} dela, com os tokens e o histórico de chat, também ${nMapas === 1 ? 'some' : 'somem'}.`
+    : '';
+  const ok = await confirmar(
+    `Excluir S${String(s.numero).padStart(2, '0')}`,
+    `${s.nome || 'Sessão sem nome'}.${aviso} Não é possível desfazer.`,
+    'Excluir'
+  );
+  if (!ok) return;
+  const { error } = await sb.from('sessoes').delete().eq('id', s.id);
+  if (error) { toast('Erro ao excluir sessão', 'erro'); return; }
+  toast('Sessão excluída.', 'sucesso');
+  await carregarSessoes(campanhaAtual.id);
+  await carregarCampanhas();
+  $('#campanha-sistema').textContent = subtituloCampanha(campanhaAtual);
 }
 
 $('#mesa-virtual-btn').addEventListener('click', () => {

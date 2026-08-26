@@ -111,6 +111,16 @@
       <div class="rule-strong"></div>
       <p class="campaign-desc" id="campanha-desc"></p>
       <div class="participantes" id="participantes"></div>
+
+      <div class="secao-head">
+        <h3 class="secao-titulo">Sessões</h3>
+        <button class="btn-ghost-small" id="nova-sessao-btn" style="display:none;">Nova sessão</button>
+      </div>
+      <div id="sessoes-lista"></div>
+
+      <div class="secao-head">
+        <h3 class="secao-titulo">Fichas</h3>
+      </div>
       <div class="card-grid" id="fichas-grid"></div>
     </section>
 
@@ -306,13 +316,40 @@
         <label for="camp-desc">Descrição</label>
         <textarea id="camp-desc" rows="3"></textarea>
       </div>
-      <div class="field">
-        <label for="camp-proxima">Próxima sessão (opcional)</label>
-        <input type="datetime-local" id="camp-proxima" />
-      </div>
       <div class="modal-actions">
         <button type="submit" class="btn-seal" style="flex:1;">Salvar</button>
         <button type="button" class="btn-text" id="modal-campanha-cancelar">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL: Nova/Editar Sessão ============ -->
+<div class="modal-backdrop" id="modal-sessao">
+  <div class="modal">
+    <h3 id="modal-sessao-titulo">Nova sessão</h3>
+    <form id="form-sessao">
+      <div class="two-col">
+        <div class="field">
+          <label for="sessao-numero">Número</label>
+          <input type="number" id="sessao-numero" min="1" required />
+        </div>
+        <div class="field">
+          <label for="sessao-data">Data (opcional)</label>
+          <input type="datetime-local" id="sessao-data" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="sessao-nome">Nome do episódio</label>
+        <input type="text" id="sessao-nome" placeholder="ex: A Queda de Vhalor" />
+      </div>
+      <div class="field">
+        <label for="sessao-resumo">Resumo (opcional)</label>
+        <textarea id="sessao-resumo" rows="3" placeholder="O que aconteceu nessa sessão"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn-seal" style="flex:1;">Salvar</button>
+        <button type="button" class="btn-text" id="modal-sessao-cancelar">Cancelar</button>
       </div>
     </form>
   </div>
