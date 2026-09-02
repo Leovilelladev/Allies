@@ -1,0 +1,141 @@
+/* =========================================================
+   Allies — Sistema visual modernista
+   Tipografia: Archivo (400–900)
+   Números: tabular-nums (.num)
+   Regras: sem raio de borda, sem sombra difusa, filetes estruturais
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --bg:           #f3f2f2;
+  --surface:      #f8f4f4;
+  --surface-2:    #eae7e7;
+
+  --text:         #201e1d;
+  --text-2:       #444141;
+  --text-3:       #605d5d;
+  --text-4:       #7d7979;
+
+  --line:         #d7d3d3;
+  --line-strong:  #bab6b6;
+
+  --accent:       #ec3013;
+  --accent-hover: #dd2b0f;
+  --accent-soft:  #fff2ef;
+
+  --font: 'Archivo', system-ui, -apple-system, sans-serif;
+
+  --gutter: 32px;
+  --maxw: 1240px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.55;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--surface);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button, input, textarea, select {
+  font-family: var(--font);
+  font-size: 14px;
+}
+
+/* Rótulo pequeno em versalete */
+.cap {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.rule-strong {
+  height: 2px;
+  background: var(--text);
+  margin: 0;
+}
+
+/* Selo de cera / Iniciais */
+.wax-seal {
+  width: 44px;
+  height: 44px;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+/* Toast */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  background: var(--text);
+  color: var(--surface);
+  padding: 12px 18px;
+  font-size: 13.5px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-left: 4px solid var(--accent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  animation: toastIn 0.2s ease-out;
+}
+
+.toast-sucesso {
+  border-left-color: #2e8b57;
+}
+
+.toast-erro {
+  border-left-color: #ec3013;
+}
+
+.toast-icon {
+  font-weight: 800;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

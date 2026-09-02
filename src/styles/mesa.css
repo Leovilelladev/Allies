@@ -1,0 +1,460 @@
+/* =========================================================
+   Allies — Estilos da Mesa Virtual (VTT)
+   Sistema modernista em modo escuro
+   ========================================================= */
+
+.mesa-root {
+  --bg:        #17161a;
+  --bg-2:      #201f24;
+  --bg-3:      #2b2a30;
+
+  --text:      #f3f2f2;
+  --text-2:    #b8b5b5;
+  --text-3:    #8b8888;
+
+  --line:      #3a383f;
+  --line-2:    #4a484f;
+
+  --accent:       #ec3013;
+  --accent-hover: #ff4526;
+  --accent-soft:  rgba(236, 48, 19, 0.14);
+
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  z-index: 50;
+}
+
+.mesa-wrap {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.mesa-stage {
+  cursor: grab;
+}
+.mesa-stage:active {
+  cursor: grabbing;
+}
+
+.mesa-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  height: 56px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.mesa-topbar > * { flex: none; }
+
+.mesa-brand {
+  font-family: var(--font);
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  text-transform: uppercase;
+}
+.mesa-brand small {
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-3);
+  text-transform: uppercase;
+  margin-left: 10px;
+}
+
+.mesa-zoom, .mesa-sync {
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.mesa-zoom { margin-left: auto; }
+
+.mesa-btn {
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid var(--line-2);
+  color: var(--text-2);
+  background: none;
+  border-radius: 0;
+  padding: 8px 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: background 0.12s linear, color 0.12s linear, border-color 0.12s linear;
+}
+.mesa-btn:hover { background: var(--bg-3); color: var(--text); border-color: var(--text-3); }
+.mesa-btn--ativo,
+.mesa-btn--ativo:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.mesa-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
+.mesa-select {
+  font-family: var(--font);
+  font-size: 12px;
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: 0;
+  color: var(--text-2);
+  padding: 7px 9px;
+  max-width: 160px;
+}
+.mesa-select:focus { outline: none; border-color: var(--accent); }
+.mesa-select[title="Sessão"] { max-width: 220px; font-weight: 600; }
+.mesa-select[title="Mapa"] { max-width: 170px; }
+
+.mesa-topbar-sep {
+  width: 1px;
+  height: 22px;
+  background: var(--line-2);
+  flex: none;
+  margin: 0 4px;
+}
+
+/* Mensagens de estado centralizadas */
+.mesa-msg-central {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 24px;
+}
+.mesa-msg-central p {
+  max-width: 480px;
+  text-align: center;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+/* Painel de Chat */
+.mesa-chat {
+  position: absolute;
+  top: 56px;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  z-index: 10;
+  background: var(--bg-2);
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+}
+
+.mesa-chat-lista {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mesa-chat-vazio {
+  color: var(--text-3);
+  font-style: normal;
+  font-size: 13px;
+}
+
+.mesa-chat-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.mesa-chat-autor {
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-3);
+  text-transform: uppercase;
+}
+
+.mesa-chat-msg--rolagem {
+  background: var(--accent-soft);
+  border: none;
+  border-left: 3px solid var(--accent);
+  border-radius: 0;
+  padding: 8px 10px;
+}
+.mesa-chat-msg--rolagem .mesa-chat-texto {
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.mesa-chat-form {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
+.mesa-chat-form input {
+  flex: 1;
+  font-family: var(--font);
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: 0;
+  padding: 8px 10px;
+  color: var(--text);
+  font-size: 13px;
+}
+.mesa-chat-form input:focus { outline: none; border-color: var(--accent); }
+
+.mesa-chat-erro {
+  margin: 0 12px 10px;
+  color: var(--accent-hover);
+  font-family: var(--font);
+  font-size: 11px;
+}
+
+/* Painel de Iniciativa */
+.mesa-iniciativa {
+  position: absolute;
+  top: 56px;
+  right: 0;
+  width: 260px;
+  max-height: calc(100vh - 56px - 24px);
+  z-index: 10;
+  margin: 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.mesa-iniciativa--deslocado {
+  right: 320px;
+}
+
+.mesa-iniciativa-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+  border-bottom: 1px solid var(--line);
+}
+
+.mesa-iniciativa-controles {
+  display: flex;
+  gap: 6px;
+}
+.mesa-iniciativa-controles .mesa-btn {
+  padding: 5px 9px;
+  font-size: 10px;
+}
+
+.mesa-iniciativa-lista {
+  overflow-y: auto;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mesa-iniciativa-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 0;
+  border: 1px solid transparent;
+}
+.mesa-iniciativa-item--ativo {
+  background: var(--accent-soft);
+  border-color: transparent;
+  border-left: 3px solid var(--accent);
+}
+
+.mesa-iniciativa-valor {
+  font-family: var(--font);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  min-width: 22px;
+  text-align: center;
+}
+
+.mesa-iniciativa-nome {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.mesa-iniciativa-remover {
+  background: none;
+  border: none;
+  color: var(--text-3);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.mesa-iniciativa-remover:hover { color: var(--accent); }
+
+.mesa-iniciativa-form {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+}
+.mesa-iniciativa-form input {
+  font-family: var(--font);
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: 0;
+  padding: 6px 8px;
+  color: var(--text);
+  font-size: 12px;
+  min-width: 0;
+}
+.mesa-iniciativa-form input:focus { outline: none; border-color: var(--accent); }
+.mesa-iniciativa-form input:first-child { flex: 1; }
+.mesa-iniciativa-input-valor { width: 56px; }
+.mesa-iniciativa-form .mesa-btn { padding: 6px 10px; }
+
+/* Soundboard */
+.mesa-soundboard {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  background: var(--bg-2);
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+}
+
+.mesa-soundboard-lista {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.mesa-soundboard-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.mesa-soundboard-play {
+  white-space: nowrap;
+}
+
+.mesa-soundboard-upload {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mesa-soundboard-upload input {
+  font-family: var(--font);
+  color: var(--text-2);
+  font-size: 12px;
+  max-width: 180px;
+}
+
+/* Modais da Mesa */
+.mesa-modal-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(10, 9, 12, 0.72);
+}
+
+.mesa-modal {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 28px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+}
+
+.mesa-modal h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+.mesa-modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.mesa-modal input {
+  font-family: var(--font);
+  font-size: 15px;
+  padding: 11px 12px;
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: 0;
+  color: var(--text);
+}
+.mesa-modal input:focus { outline: none; border-color: var(--accent); }
+
+.mesa-modal-acoes { display: flex; gap: 10px; }
+.mesa-modal-acoes .mesa-btn { flex: 1; padding: 11px; text-align: center; justify-content: center; }

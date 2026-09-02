@@ -2,15 +2,19 @@
 
 Site para hospedar campanhas de RPG, fichas de personagem e informações de sessão. Começou como projeto para o Léo e os amigos, com expansão futura planejada.
 
-## Arquivos do código (site principal)
-- `index.html` — estrutura da página
-- `style.css` — identidade visual (sistema modernista: Archivo, fundo claro, acento vermelho)
-- `app.js` — lógica: autenticação, campanhas, participantes, ficha completa de D&D 5e
+## Arquivos e Estrutura do Código (React + Vite)
+- `src/login/` — autenticação (Login, Cadastro, hero modernista)
+- `src/hub/` — Dashboard, detalhe de campanha, sessões, participantes e ficha completa de D&D 5e
+- `src/mesa/` — Mesa Virtual (VTT): canvas Konva, tokens, iniciativa, chat, soundboard e névoa
+- `src/shared/` — cliente Supabase único, sistema de Toast e modal de confirmação
+- `src/styles/` — identidade visual modernista (`global.css`, `hub.css`, `mesa.css`)
+- `src/App.jsx` — orquestrador de estado global, sessão e rotas
 
-## Stack (site principal)
-- HTML/CSS/JS puro (sem build, sem React/TS)
-- [Supabase](https://supabase.com) para autenticação e banco de dados (projeto `rpg-campanhas`, plano gratuito)
-- **Hospedado na Vercel: https://allies-nine.vercel.app** — deploy a partir do GitHub (Leovilelladev/Allies), Root Directory `./`, sem framework/build (preset "Other")
+## Stack
+- React 19 + Vite
+- Konva / React-Konva para a Mesa Virtual
+- [Supabase](https://supabase.com) para autenticação, banco de dados e Realtime
+- **Hospedado na Vercel: https://allies-nine.vercel.app** — build automatizado com Vite (`npm run build`)
 
 ## Autenticação
 - Login com **usuário + senha** (sem e-mail visível)

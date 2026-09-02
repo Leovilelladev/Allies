@@ -1,5 +1,8 @@
 node_modules/
+dist/
 mesa-virtual-src/node_modules/
 mesa-virtual-src/dist/
 .obsidian/
 *.log
+.env
+.env*.local
