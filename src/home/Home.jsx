@@ -11,6 +11,7 @@ import ModalCampanha from './components/ModalCampanha';
 import ModalSessao from './components/ModalSessao';
 import ModalNovaFicha from './components/ModalNovaFicha';
 import ModalConvidar from './components/ModalConvidar';
+import ModalCriacaoCampeaoHextech from './components/ModalCriacaoCampeaoHextech';
 
 function initials(nome) {
   if (!nome) return 'A';
@@ -495,9 +496,10 @@ export default function Home({
     const nomePersonagem = payload.nome || 'Personagem';
     const cId = payload.campanhaId || campanhaAtual?.id || null;
     const dadosIniciais = payload.dadosIniciais || {};
+    const uId = Number(usuarioAtual?.id) || 1;
 
     const dbPayload = {
-      usuario_id: Number(usuarioAtual.id),
+      usuario_id: uId,
       nome: nomePersonagem,
       raca: payload.raca || 'Humano',
       classe: payload.classe || 'Guerreiro',
@@ -523,11 +525,11 @@ export default function Home({
       inteligencia: Number(dadosIniciais.int ?? 10),
       sabedoria: Number(dadosIniciais.sab ?? 12),
       carisma: Number(dadosIniciais.car ?? 8),
-      pericias: dadosIniciais.pericias || { acrobacia: true, arcanismo: true, investigacao: true },
+      pericias: dadosIniciais.pericias || { atletismo: true, percepcao: true },
       ataques: dadosIniciais.ataques || [],
       magias: dadosIniciais.magias || [],
-      espacos_magia: dadosIniciais.spellSlots || { 1: { total: 4, gastos: 0 } },
-      moedas: dadosIniciais.moedas || { po: 45, pp: 12, pc: 8 },
+      espacos_magia: dadosIniciais.espacos_magia || dadosIniciais.spellSlots || { 1: { total: 4, gastos: 0 } },
+      moedas: dadosIniciais.moedas || { po: 50, pp: 0, pc: 0 },
       equipamento: dadosIniciais.equipamento || '',
       tracos: dadosIniciais.tracos || '',
       historia: dadosIniciais.historia || '',
@@ -542,19 +544,23 @@ export default function Home({
 
     if (error) {
       toast('Erro ao salvar personagem no Supabase: ' + error.message, 'erro');
-      return;
+      throw error;
     }
 
     // Se vinculado a uma campanha, insere em campanha_personagens
     if (cId && novoPers) {
-      await sb.from('campanha_personagens').insert({
-        campanha_id: Number(cId),
-        usuario_id: Number(usuarioAtual.id),
-        personagem_id: novoPers.id,
-      });
+      try {
+        await sb.from('campanha_personagens').insert({
+          campanha_id: Number(cId),
+          usuario_id: uId,
+          personagem_id: novoPers.id,
+        });
+      } catch (cpErr) {
+        console.warn('Erro ao vincular à campanha:', cpErr);
+      }
     }
 
-    toast('Personagem salvo no Supabase com sucesso!', 'sucesso');
+    toast(`Ficha de ${nomePersonagem} criada e salva com sucesso!`, 'sucesso');
     setModalNovaFicha(false);
 
     const fichaFormatada = {
@@ -569,6 +575,7 @@ export default function Home({
       setFichasCampanha((prev) => [...prev, fichaFormatada]);
     }
     setFichaAberta(fichaFormatada);
+    setMenuAtivo('personagens');
     setView('ficha');
     carregarDadosHub();
   };
@@ -706,14 +713,15 @@ export default function Home({
       <nav className="nexus-top-nav">
         <div className="nexus-nav-inner">
           <div
-            className="flex items-center gap-8"
-            style={{ cursor: 'pointer' }}
+            className="flex items-center gap-3"
+            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
             onClick={() => {
               setView('dashboard');
               setMenuAtivo('campanhas');
               setCampanhaAtual(null);
             }}
           >
+            <div className="hextech-gem-icon" />
             <span className="nexus-brand-title">ALLIES</span>
           </div>
 
@@ -954,7 +962,7 @@ export default function Home({
       )}
 
       {modalNovaFicha && (
-        <ModalNovaFicha
+        <ModalCriacaoCampeaoHextech
           campanhas={campanhas}
           campanhaPadraoId={campanhaAtual?.id}
           onCriar={handleCriarFicha}

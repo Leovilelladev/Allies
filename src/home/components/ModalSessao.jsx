@@ -61,6 +61,11 @@ export default function ModalSessao({
       }}
     >
       <div className="wizard-modal-container" style={{ maxWidth: '580px' }}>
+        <div className="hextech-corner-accent top-left" />
+        <div className="hextech-corner-accent top-right" />
+        <div className="hextech-corner-accent bottom-left" />
+        <div className="hextech-corner-accent bottom-right" />
+
         {/* Cabeçalho */}
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <div className="wizard-sparkle-circle">

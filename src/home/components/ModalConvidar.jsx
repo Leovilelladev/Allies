@@ -18,6 +18,11 @@ export default function ModalConvidar({ onConvidar, onCancelar }) {
       }}
     >
       <div className="wizard-modal-container" style={{ maxWidth: '480px' }}>
+        <div className="hextech-corner-accent top-left" />
+        <div className="hextech-corner-accent top-right" />
+        <div className="hextech-corner-accent bottom-left" />
+        <div className="hextech-corner-accent bottom-right" />
+
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <div className="wizard-sparkle-circle">
             <span className="material-symbols-outlined text-2xl">person_add</span>

@@ -6,28 +6,35 @@
    ========================================================= */
 
 :root {
-  --font-serif: "Source Serif 4", Georgia, serif;
+  --font-serif: "Cinzel", "Source Serif 4", Georgia, serif;
   --font-sans: "Hanken Grotesk", system-ui, -apple-system, sans-serif;
 
-  --color-surface-dim: #081327;
-  --color-on-surface: #d8e2fe;
-  --color-surface-container-highest: #2a354a;
-  --color-surface-tint: #e2c384;
-  --color-surface-container-lowest: #040e22;
-  --color-surface-container-low: #111b30;
-  --color-surface-container: #151f34;
-  --color-surface-bright: #2f394f;
-  --color-secondary-container: #00c6b7;
-  --color-primary: #e5c587;
-  --color-primary-container: #c8aa6e;
-  --color-primary-fixed: #ffdfa0;
-  --color-secondary: #43e2d2;
-  --color-tertiary: #91d1fe;
-  --color-outline: #998f81;
-  --color-outline-variant: #4d463a;
-  --color-on-surface-variant: #d0c5b5;
-  --color-error: #ffb4ab;
-  --color-error-container: #93000a;
+  /* Hextech Palette */
+  --color-surface-dim: #010a13;
+  --color-surface-container-lowest: #010a13;
+  --color-surface-container-low: #091428;
+  --color-surface-container: #0d2040;
+  --color-surface-container-high: #152747;
+  --color-surface-container-highest: #1e355b;
+  --color-surface-bright: #26436f;
+  
+  --color-primary: #c8aa6e;
+  --color-primary-container: #785a28;
+  --color-primary-fixed: #f0e6d2;
+  --color-surface-tint: #c8aa6e;
+  
+  --color-secondary: #0ac8b9;
+  --color-secondary-container: #005a82;
+  --color-tertiary: #0bc6e3;
+  
+  --color-outline: #785a28;
+  --color-outline-variant: rgba(200, 170, 110, 0.25);
+  
+  --color-on-surface: #f0e6d2;
+  --color-on-surface-variant: #a09b8c;
+  
+  --color-error: #ff5858;
+  --color-error-container: #661010;
 }
 
 /* ================= SPECIAL EFFECTS & HEXTECH ================= */
@@ -2842,3 +2849,232 @@ input[type="number"] {
   }
 }
 
+
+/* ==========================================================================
+   HEXTECH LEAGUE OF LEGENDS THEME OVERRIDES FOR THE ENTIRE HUB
+   ========================================================================== */
+
+body, html {
+  background-color: #010a13 !important;
+  color: #f0e6d2 !important;
+}
+
+.nexus-app-shell {
+  background: radial-gradient(circle at 50% 0%, #0d2040 0%, #091428 40%, #010a13 100%) !important;
+  min-height: 100vh;
+}
+
+/* TOP NAVIGATION */
+.nexus-top-nav {
+  background: rgba(9, 20, 40, 0.9) !important;
+  backdrop-filter: blur(14px) !important;
+  border-bottom: 1px solid rgba(200, 170, 110, 0.25) !important;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.8) !important;
+}
+
+.nexus-brand-title {
+  color: #f0e6d2 !important;
+  font-family: var(--font-serif) !important;
+  letter-spacing: 2px !important;
+  text-shadow: 0 0 12px rgba(200, 170, 110, 0.4) !important;
+}
+
+.nexus-search-input {
+  background: rgba(1, 10, 19, 0.85) !important;
+  border: 1px solid #785a28 !important;
+  color: #f0e6d2 !important;
+  border-radius: 2px !important;
+}
+
+.nexus-search-input:focus {
+  border-color: #0ac8b9 !important;
+  box-shadow: 0 0 12px rgba(10, 200, 185, 0.45) !important;
+}
+
+/* SIDEBAR NAVIGATION */
+.nexus-sidebar {
+  background: rgba(9, 20, 40, 0.75) !important;
+  border-right: 1px solid rgba(200, 170, 110, 0.2) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.nexus-nav-item {
+  color: #a09b8c !important;
+  border-radius: 2px !important;
+  transition: all 0.2s ease !important;
+  font-family: var(--font-serif) !important;
+  letter-spacing: 1px !important;
+  font-size: 13px !important;
+  text-transform: uppercase !important;
+}
+
+.nexus-nav-item:hover {
+  background: rgba(200, 170, 110, 0.1) !important;
+  color: #f0e6d2 !important;
+  border-left: 2px solid #c8aa6e !important;
+}
+
+.nexus-nav-item.active {
+  background: linear-gradient(90deg, rgba(0, 90, 130, 0.4) 0%, rgba(9, 20, 40, 0.2) 100%) !important;
+  color: #0ac8b9 !important;
+  border-left: 3px solid #0ac8b9 !important;
+  box-shadow: inset 0 0 12px rgba(10, 200, 185, 0.15) !important;
+}
+
+.nexus-nav-item.active .material-symbols-outlined {
+  color: #0ac8b9 !important;
+  text-shadow: 0 0 8px rgba(10, 200, 185, 0.6) !important;
+}
+
+/* BOTÃO CAMPANHAS PLAY STYLE */
+.nexus-btn-campanhas {
+  background: linear-gradient(180deg, #1e283d 0%, #005a82 100%) !important;
+  border: 1px solid #0ac8b9 !important;
+  color: #f0e6d2 !important;
+  font-family: var(--font-serif) !important;
+  letter-spacing: 2px !important;
+  font-weight: 800 !important;
+  box-shadow: 0 0 16px rgba(10, 200, 185, 0.4) !important;
+  border-radius: 2px !important;
+  transition: all 0.25s ease !important;
+}
+
+.nexus-btn-campanhas:hover {
+  background: linear-gradient(180deg, #005a82 0%, #0ac8b9 100%) !important;
+  box-shadow: 0 0 24px rgba(10, 200, 185, 0.75) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* CARDS DE CAMPANHA & CONTEÚDO */
+.nexus-campaign-card, .hex-card {
+  background: radial-gradient(circle at 50% 0%, #17243c 0%, #091428 100%) !important;
+  border: 1px solid #785a28 !important;
+  border-radius: 2px !important;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.7) !important;
+  transition: all 0.25s cubic-bezier(0.2, 0, 0.2, 1) !important;
+}
+
+.nexus-campaign-card:hover, .hex-card:hover {
+  transform: translateY(-4px) !important;
+  border-color: #c8aa6e !important;
+  box-shadow: 0 0 20px rgba(200, 170, 110, 0.35), 0 8px 30px rgba(0, 0, 0, 0.8) !important;
+}
+
+.nexus-card-banner {
+  border-bottom: 1px solid rgba(120, 90, 40, 0.4) !important;
+}
+
+.nexus-card-banner-overlay {
+  background: linear-gradient(180deg, rgba(9, 20, 40, 0.1) 0%, rgba(9, 20, 40, 0.95) 100%) !important;
+}
+
+.nexus-card-title {
+  color: #f0e6d2 !important;
+  font-family: var(--font-serif) !important;
+  letter-spacing: 0.5px !important;
+}
+
+.nexus-card-desc {
+  color: #a09b8c !important;
+}
+
+.nexus-card-footer {
+  border-top: 1px solid rgba(120, 90, 40, 0.3) !important;
+  background: rgba(1, 10, 19, 0.6) !important;
+}
+
+/* BOTÕES DOURADOS & AÇÕES */
+.gold-gradient-btn {
+  background: linear-gradient(135deg, #c8aa6e 0%, #785a28 100%) !important;
+  border: 1px solid #f0e6d2 !important;
+  color: #010a13 !important;
+  font-family: var(--font-serif) !important;
+  font-weight: 800 !important;
+  letter-spacing: 1px !important;
+  border-radius: 2px !important;
+  box-shadow: 0 0 12px rgba(200, 170, 110, 0.3) !important;
+}
+
+.gold-gradient-btn:hover {
+  background: linear-gradient(135deg, #f0e6d2 0%, #c8aa6e 100%) !important;
+  box-shadow: 0 0 20px rgba(200, 170, 110, 0.6) !important;
+  transform: translateY(-1px) !important;
+}
+
+.nexus-btn-create {
+  font-family: var(--font-serif) !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase !important;
+}
+
+/* HEADINGS & LABELS */
+.nexus-section-heading {
+  color: #f0e6d2 !important;
+  font-family: var(--font-serif) !important;
+  letter-spacing: 1.5px !important;
+  text-transform: uppercase !important;
+}
+
+/* BADGES & TAGS */
+.nexus-tag, .nexus-chip, .nexus-system-badge {
+  background: rgba(1, 10, 19, 0.8) !important;
+  border: 1px solid #785a28 !important;
+  color: #c8aa6e !important;
+  border-radius: 2px !important;
+  font-family: var(--font-serif) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.5px !important;
+  text-transform: uppercase !important;
+}
+
+.nexus-tag.cyan, .nexus-chip.active {
+  border-color: #0ac8b9 !important;
+  color: #0ac8b9 !important;
+  background: rgba(0, 90, 130, 0.3) !important;
+  box-shadow: 0 0 8px rgba(10, 200, 185, 0.3) !important;
+}
+
+/* MODAIS - CONTAINER PADRÃO HEXTECH */
+.wizard-modal-backdrop {
+  background: rgba(1, 10, 19, 0.88) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.wizard-modal-container {
+  background: radial-gradient(circle at 50% 0%, #0d2040 0%, #091428 50%, #010a13 100%) !important;
+  border: 1px solid #785a28 !important;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.95), 0 0 25px rgba(200, 170, 110, 0.25) !important;
+  border-radius: 2px !important;
+}
+
+.wizard-modal-header {
+  background: rgba(9, 20, 40, 0.7) !important;
+  border-bottom: 1px solid rgba(200, 170, 110, 0.25) !important;
+  color: #f0e6d2 !important;
+  font-family: var(--font-serif) !important;
+  letter-spacing: 1.5px !important;
+}
+
+.wizard-modal-title {
+  color: #f0e6d2 !important;
+  font-family: var(--font-serif) !important;
+  letter-spacing: 1.5px !important;
+  text-transform: uppercase !important;
+}
+
+.wizard-modal-footer {
+  background: rgba(9, 20, 40, 0.85) !important;
+  border-top: 1px solid rgba(200, 170, 110, 0.25) !important;
+}
+
+.wizard-input, .wizard-textarea, .wizard-select, .wizard-input-highlight {
+  background: rgba(1, 10, 19, 0.85) !important;
+  border: 1px solid #785a28 !important;
+  color: #f0e6d2 !important;
+  border-radius: 2px !important;
+}
+
+.wizard-input:focus, .wizard-textarea:focus, .wizard-select:focus, .wizard-input-highlight:focus {
+  border-color: #0ac8b9 !important;
+  box-shadow: 0 0 12px rgba(10, 200, 185, 0.45) !important;
+}

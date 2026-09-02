@@ -95,6 +95,11 @@ export default function ModalCampanha({ campanha, onSalvar, onCancelar }) {
       }}
     >
       <div className="wizard-modal-container">
+        <div className="hextech-corner-accent top-left" />
+        <div className="hextech-corner-accent top-right" />
+        <div className="hextech-corner-accent bottom-left" />
+        <div className="hextech-corner-accent bottom-right" />
+
         {/* Indicador Superior de Passos (1 Básicos -> 2 Convite) */}
         <div className="wizard-steps-header">
           <div
