@@ -149,6 +149,17 @@ export default function ChatPanel({ cenaId, userId, autorNome, modoRolagem, onMo
 
   const rolarDadoRapido = useCallback(
     (faces) => {
+      if (faces === 20) {
+        const r = rolarD20({ modo: modoRolagem });
+        enviarRolagem({
+          cenaId,
+          userId,
+          autorNome,
+          payload: { categoria: 'dado', titulo: 'd20', d20: r },
+        });
+        return;
+      }
+
       const r = rolarFormula(`1d${faces}`);
       enviarRolagem({
         cenaId,
@@ -157,7 +168,7 @@ export default function ChatPanel({ cenaId, userId, autorNome, modoRolagem, onMo
         payload: { categoria: 'dado', titulo: `d${faces}`, dados: r },
       });
     },
-    [cenaId, userId, autorNome]
+    [cenaId, userId, autorNome, modoRolagem]
   );
 
   const enviar = useCallback(

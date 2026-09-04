@@ -17,6 +17,7 @@ import TokenPanel from './TokenPanel';
 import { METROS_POR_QUADRADO as METROS } from './constantes';
 import { COR, CSS, FONTE_SANS } from './paleta';
 import { podeControlarToken, podeCriarTokenDeFicha } from './permissoes';
+import Dado3DHost from './Dado3DHost';
 
 const COR_TOKEN_PADRAO = '#785a28';
 import { CONDICAO_POR_ID } from './condicoes';
@@ -2168,6 +2169,7 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
 
   return (
     <div className={`mesa-wrap ${dockAberto ? 'com-dock' : ''}`}>
+      <Dado3DHost />
       {/* Barra superior: contexto e navegação */}
       <header className="mesa-topbar">
         <button className="mesa-btn mesa-btn--fantasma" onClick={onVoltarCampanha}>

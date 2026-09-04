@@ -28,6 +28,9 @@ Qualquer migration, função, política ou tabela nova deste trabalho deve conte
 
 ## P3 — Experiência de mesa
 
+- [x] Criar d20 3D do Allies com fonte Blender e exportação GLB.
+- [x] Integrar animação do d20 às rolagens e carregar o motor 3D sob demanda.
+- [ ] Criar modelos d4, d6, d8, d10, d12 e d100.
 - [ ] Presença e bloqueio temporário durante arrasto.
 - [ ] Movimento remoto suave por broadcast.
 - [ ] Ativação de áudio, volume local e parar todos os sons.

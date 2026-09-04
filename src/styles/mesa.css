@@ -1701,3 +1701,121 @@
   .ferramenta-rotulo { display: none; }
   .ferramenta { padding: 12px 2px; }
 }
+
+/* Dado 3D — camada visual; o resultado continua vindo da regra de rolagem. */
+.dado3d-overlay {
+  position: fixed;
+  z-index: 1200;
+  inset: 50% auto auto 50%;
+  width: min(520px, 88vw);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(200, 170, 110, 0.35);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(16, 68, 102, 0.3), rgba(3, 10, 24, 0.88) 67%, rgba(3, 8, 20, 0));
+  filter: drop-shadow(0 28px 48px rgba(0, 0, 0, 0.7));
+  animation: dado3d-entrada 180ms ease-out;
+}
+
+.dado3d-brilho {
+  position: absolute;
+  inset: 13%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(10, 200, 185, 0.14), transparent 66%);
+  animation: dado3d-pulso 1.7s ease-in-out infinite;
+}
+
+.dado3d-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.dado3d-valores {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 20%;
+  display: flex;
+  justify-content: space-around;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.dado3d-valores span {
+  padding: 4px 9px;
+  border: 1px solid rgba(200, 170, 110, 0.3);
+  border-radius: 999px;
+  color: var(--m-texto-2);
+  background: rgba(5, 15, 33, 0.88);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.dado3d-valores strong {
+  color: var(--m-dourado);
+  font-size: 13px;
+}
+
+.dado3d-resultado {
+  position: absolute;
+  left: 50%;
+  bottom: 3%;
+  min-width: 150px;
+  transform: translateX(-50%);
+  display: grid;
+  justify-items: center;
+  padding: 8px 22px;
+  border: 1px solid rgba(200, 170, 110, 0.35);
+  border-radius: 8px;
+  background: rgba(5, 15, 33, 0.92);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  text-transform: uppercase;
+}
+
+.dado3d-resultado.is-oculto {
+  visibility: hidden;
+}
+
+.dado3d-resultado span,
+.dado3d-resultado small {
+  color: var(--m-texto-2);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.dado3d-resultado strong {
+  color: var(--m-dourado);
+  font: 700 36px/1 var(--m-serif);
+  text-shadow: 0 0 18px rgba(200, 170, 110, 0.35);
+}
+
+.dado3d-resultado strong.is-critico { color: #48e0ca; }
+.dado3d-resultado strong.is-falha { color: var(--m-erro); }
+
+.dado3d-fechar {
+  position: absolute;
+  top: 10%;
+  right: 10%;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  color: var(--m-texto-2);
+  background: rgba(5, 15, 33, 0.75);
+  cursor: pointer;
+}
+
+@keyframes dado3d-entrada {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.82); }
+}
+
+@keyframes dado3d-pulso {
+  50% { transform: scale(1.08); opacity: 0.62; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dado3d-overlay,
+  .dado3d-brilho { animation: none; }
+}

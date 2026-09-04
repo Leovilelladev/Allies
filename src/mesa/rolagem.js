@@ -3,6 +3,7 @@
 // avulso, atributo, perícia, salvaguarda, ataque) passa por aqui, então o
 // chat consegue renderizar todas com o mesmo formato.
 import { sb } from '../shared/supabaseClient';
+import { anunciarRolagem3D } from './diceEvents';
 
 export const MODOS = { NORMAL: 'normal', VANTAGEM: 'vantagem', DESVANTAGEM: 'desvantagem' };
 
@@ -97,6 +98,7 @@ export function resumirRolagem(payload) {
 // Publica a rolagem no chat da cena
 export async function enviarRolagem({ cenaId, userId, autorNome, payload }) {
   if (!cenaId || !userId) return { error: new Error('sem cena ou usuário') };
+  anunciarRolagem3D(payload);
   return sb.from('mesa_chat').insert({
     cena_id: cenaId,
     usuario_id: userId,
