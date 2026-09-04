@@ -4,7 +4,7 @@ Site para hospedar campanhas de RPG, fichas de personagem e informações de ses
 
 ## Arquivos e Estrutura do Código (React + Vite)
 - `src/login/` — autenticação (Login, Cadastro, hero modernista)
-- `src/hub/` — Dashboard, detalhe de campanha, sessões, participantes e ficha completa de D&D 5e
+- `src/home/` — Dashboard, detalhe de campanha, sessões, participantes e ficha completa de D&D 5e
 - `src/mesa/` — Mesa Virtual (VTT): canvas Konva, tokens, iniciativa, chat, soundboard e névoa
 - `src/shared/` — cliente Supabase único, sistema de Toast e modal de confirmação
 - `src/styles/` — identidade visual modernista (`global.css`, `hub.css`, `mesa.css`)

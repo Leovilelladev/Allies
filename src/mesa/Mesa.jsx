@@ -3,6 +3,17 @@ import MesaCanvas from './MesaCanvas';
 import ModalNome from './ModalNome';
 import { sb } from '../shared/supabaseClient';
 
+export function lerUsuarioLocal() {
+  try {
+    const bruto = localStorage.getItem('allies_usuario');
+    if (!bruto) return null;
+    const u = JSON.parse(bruto);
+    return u?.id ? u : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 function sincronizarUrl(campanhaId, sessaoId, cenaId) {
   const p = new URLSearchParams();
   if (campanhaId) p.set('campanha', campanhaId);
@@ -11,7 +22,9 @@ function sincronizarUrl(campanhaId, sessaoId, cenaId) {
   window.history.replaceState(null, '', `?${p.toString()}`);
 }
 
-const rotuloSessao = (s) => `S${String(s.numero).padStart(2, '0')}${s.nome ? ` · ${s.nome}` : ''}`;
+// O site guarda a sessão com `titulo`; a numeração vem da ordem de criação
+const rotuloSessao = (s, indice) =>
+  `S${String(indice + 1).padStart(2, '0')}${s.titulo ? ` · ${s.titulo}` : ''}`;
 
 export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) {
   const [status, setStatus] = useState('carregando');
@@ -31,21 +44,12 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
       return;
     }
 
-    let meuId = null;
-    const localUser = localStorage.getItem('allies_usuario');
-    if (localUser) {
-      try {
-        meuId = JSON.parse(localUser).id;
-      } catch (e) {}
-    }
-
+    // Mesma identidade do site: o id de `usuarios` que o login guarda no
+    // localStorage. A mesa não tem sessão própria.
+    const meuId = lerUsuarioLocal()?.id ?? null;
     if (!meuId) {
-      const { data: auth } = await sb.auth.getSession();
-      if (!auth?.session) {
-        setStatus('sem-sessao-auth');
-        return;
-      }
-      meuId = auth.session.user.id;
+      setStatus('sem-sessao-auth');
+      return;
     }
 
     const { data: campanha, error: erroCampanha } = await sb
@@ -65,14 +69,14 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
       return;
     }
 
-    const souMestre = Number(campanha.mestre_id) === Number(meuId) || campanha.mestre_id === meuId;
+    const souMestre = Number(campanha.mestre_id) === Number(meuId);
     setEhMestre(souMestre);
 
     const { data: lista, error: erroSessoes } = await sb
       .from('sessoes')
       .select('*')
       .eq('campanha_id', campanhaId)
-      .order('numero', { ascending: true });
+      .order('id', { ascending: true });
 
     if (erroSessoes) {
       setErro(erroSessoes.message);
@@ -87,7 +91,7 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
         setStatus('sem-sessoes');
         return;
       }
-      const criada = await criarSessaoNoBanco(campanhaId, 1, 'Primeira sessão');
+      const criada = await criarSessaoNoBanco(campanhaId, 'Primeira sessão');
       if (!criada) {
         setStatus('sem-sessoes');
         return;
@@ -112,7 +116,7 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
   const carregarCenas = useCallback(
     async (idSessao, souMestre) => {
       const { data, error } = await sb
-        .from('cenas')
+        .from('mesa_cenas')
         .select('*')
         .eq('sessao_id', idSessao)
         .order('criado_em', { ascending: true });
@@ -142,7 +146,7 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
       setCenas(lista);
       const urlParams = new URLSearchParams(window.location.search);
       const cenaDaUrl = urlParams.get('cena');
-      const escolhida = lista.find((c) => c.id === cenaDaUrl) || lista[0];
+      const escolhida = lista.find((c) => String(c.id) === String(cenaDaUrl)) || lista[0];
       setCenaId(escolhida.id);
       setStatus('pronto');
     },
@@ -173,7 +177,7 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
           setSessoes((prev) => {
             if (payload.eventType === 'DELETE') return prev.filter((s) => s.id !== payload.old.id);
             const sem = prev.filter((s) => s.id !== payload.new.id);
-            return [...sem, payload.new].sort((a, b) => a.numero - b.numero);
+            return [...sem, payload.new].sort((a, b) => a.id - b.id);
           });
         }
       )
@@ -190,7 +194,7 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
       .channel(`mesa-cenas-${sessaoId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'cenas', filter: `sessao_id=eq.${sessaoId}` },
+        { event: '*', schema: 'public', table: 'mesa_cenas', filter: `sessao_id=eq.${sessaoId}` },
         (payload) => {
           setCenas((prev) => {
             if (payload.eventType === 'DELETE') return prev.filter((c) => c.id !== payload.old.id);
@@ -213,11 +217,10 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
     setOcupado(true);
 
     if (alvo === 'sessao') {
-      const numero = sessoes.length ? Math.max(...sessoes.map((s) => s.numero)) + 1 : 1;
-      const criada = await criarSessaoNoBanco(campanhaId, numero, nome.trim());
+      const criada = await criarSessaoNoBanco(campanhaId, nome.trim());
       if (criada) {
         setSessoes((prev) =>
-          [...prev.filter((s) => s.id !== criada.id), criada].sort((a, b) => a.numero - b.numero)
+          [...prev.filter((s) => s.id !== criada.id), criada].sort((a, b) => a.id - b.id)
         );
         setCenaId(null);
         setSessaoId(criada.id);
@@ -250,6 +253,19 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
           <p>Abra a Mesa Virtual a partir de uma campanha.</p>
           <button className="mesa-btn" onClick={onVoltarCampanha} style={{ marginTop: '16px' }}>
             Ir para o Hub
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'sem-sessao-auth') {
+    return (
+      <div className="mesa-root">
+        <div className="mesa-msg-central">
+          <p>Sua sessão expirou. Volte e entre de novo para abrir a mesa.</p>
+          <button className="mesa-btn" onClick={onVoltarCampanha} style={{ marginTop: '16px' }}>
+            Voltar
           </button>
         </div>
       </div>
@@ -306,9 +322,9 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
         }}
         title="Sessão"
       >
-        {sessoes.map((s) => (
+        {sessoes.map((s, i) => (
           <option key={s.id} value={s.id}>
-            {rotuloSessao(s)}
+            {rotuloSessao(s, i)}
           </option>
         ))}
       </select>
@@ -347,7 +363,7 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
     </>
   );
 
-  const proximoNumero = sessoes.length ? Math.max(...sessoes.map((s) => s.numero)) + 1 : 1;
+  const proximoNumero = sessoes.length + 1;
 
   return (
     <div className="mesa-root">
@@ -375,28 +391,22 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
   );
 }
 
-async function criarSessaoNoBanco(campanhaId, numero, nome) {
+async function criarSessaoNoBanco(campanhaId, titulo) {
   const { data, error } = await sb
     .from('sessoes')
-    .insert({ campanha_id: campanhaId, numero, nome })
+    .insert({ campanha_id: campanhaId, titulo: titulo || 'Nova sessão', status: 'planejada' })
     .select()
     .single();
-  if (!error) return data;
-  if (error.code === '23505') {
-    const { data: existente } = await sb
-      .from('sessoes')
-      .select('*')
-      .eq('campanha_id', campanhaId)
-      .eq('numero', numero)
-      .maybeSingle();
-    if (existente) return existente;
+  if (error) {
+    console.error('Falha ao criar sessão:', error.message);
+    return null;
   }
-  return null;
+  return data;
 }
 
 async function criarCenaNoBanco(campanhaId, sessaoId, nome) {
   const { data, error } = await sb
-    .from('cenas')
+    .from('mesa_cenas')
     .insert({ campanha_id: campanhaId, sessao_id: sessaoId, nome })
     .select()
     .single();

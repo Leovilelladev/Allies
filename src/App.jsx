@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { sb, ToastProvider, ConfirmProvider } from './shared';
 import { Login } from './login';
 import { Home } from './home';
-import { Mesa } from './mesa';
+
+const Mesa = lazy(() => import('./mesa/Mesa'));
 
 import './styles/global.css';
 import './styles/hub.css';
@@ -143,11 +144,19 @@ export default function App() {
         {!usuarioAtual ? (
           <Login onAuthSuccess={(u) => { if (u) setUsuarioAtual(u); setTela('hub'); }} />
         ) : tela === 'mesa' && mesaCampanhaId ? (
-          <Mesa
-            campanhaId={mesaCampanhaId}
-            sessaoInicialId={mesaSessaoId}
-            onVoltarCampanha={handleVoltarCampanha}
-          />
+          <Suspense
+            fallback={
+              <div className="mesa-root">
+                <div className="mesa-msg-central"><p>Carregando a mesa…</p></div>
+              </div>
+            }
+          >
+            <Mesa
+              campanhaId={mesaCampanhaId}
+              sessaoInicialId={mesaSessaoId}
+              onVoltarCampanha={handleVoltarCampanha}
+            />
+          </Suspense>
         ) : (
           <Home
             usuarioAtual={usuarioAtual}

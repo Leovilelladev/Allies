@@ -6,15 +6,16 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "node tests/visao.mjs && node tests/permissoes-vtt.mjs",
+    "test:perf": "node tests/perf-visao.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/server": "^1.4.1",
     "@supabase/supabase-js": "^2.58.0",
-    "konva": "^10.3.1",
+    "pixi.js": "^8.20.1",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "react-konva": "^19.2.5"
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",

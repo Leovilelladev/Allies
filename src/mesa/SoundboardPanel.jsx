@@ -99,20 +99,20 @@ export default function SoundboardPanel({ cenaId, campanhaId, ehMestre }) {
   }, []);
 
   return (
-    <div className="mesa-soundboard">
-      <div className="mesa-soundboard-lista">
+    <div className="soundboard">
+      <div className="soundboard-lista">
         {sons.length === 0 && (
-          <span className="mesa-chat-vazio">Nenhum som cadastrado nesta campanha.</span>
+          <span className="dock-vazio">Nenhum som cadastrado nesta campanha.</span>
         )}
         {sons.map((som) => (
-          <div key={som.id} className="mesa-soundboard-item">
-            <button className="mesa-btn mesa-soundboard-play" onClick={() => tocar(som)}>
+          <div key={som.id} className="soundboard-item">
+            <button className="soundboard-play" onClick={() => tocar(som)}>
               ▶ {som.nome}
             </button>
             {ehMestre && (
               <button
                 type="button"
-                className="mesa-iniciativa-remover"
+                className="mesa-icone-btn"
                 onClick={() => remover(som)}
                 title="Excluir som"
               >
@@ -123,8 +123,8 @@ export default function SoundboardPanel({ cenaId, campanhaId, ehMestre }) {
         ))}
       </div>
       {ehMestre && (
-        <div className="mesa-soundboard-upload">
-          {erro && <span className="mesa-chat-erro">{erro}</span>}
+        <div className="soundboard-upload">
+          {erro && <span className="chat-erro">{erro}</span>}
           <input
             ref={inputRef}
             type="file"
@@ -133,7 +133,7 @@ export default function SoundboardPanel({ cenaId, campanhaId, ehMestre }) {
             style={{ display: 'none' }}
           />
           <button
-            className="mesa-btn"
+            className="mesa-btn mesa-btn--largo"
             onClick={() => inputRef.current?.click()}
             disabled={enviando}
           >
