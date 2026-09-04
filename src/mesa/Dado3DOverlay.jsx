@@ -112,7 +112,7 @@ function posicaoFinal(indice, quantidade) {
   );
 }
 
-export default function Dado3DOverlay({ rolagem, onClose, cinematicaExterna = false }) {
+export default function Dado3DOverlay({ rolagem, onClose }) {
   const canvasRef = useRef(null);
   const [mostrarResultados, setMostrarResultados] = useState(rolagem.d20.valores.length <= 3);
 
@@ -160,14 +160,13 @@ export default function Dado3DOverlay({ rolagem, onClose, cinematicaExterna = fa
       (gltf) => {
         if (cancelado) return;
         const valores = rolagem.d20.valores.slice(0, 6);
-        const grade = valores.length > 3;
-        const usaMao = grade && !cinematicaExterna;
-        const escala = grade ? 0.38 : valores.length > 2 ? 0.48 : valores.length === 2 ? 0.56 : 1.08;
+        const usaMao = valores.length > 3;
+        const escala = usaMao ? 0.38 : valores.length > 2 ? 0.48 : valores.length === 2 ? 0.56 : 1.08;
         const espacamento = valores.length > 2 ? 1.65 : 2.25;
         dados = valores.map((valor, indice) => {
           const dado = gltf.scene.clone(true);
           dado.scale.setScalar(escala);
-          const final = grade
+          const final = usaMao
             ? posicaoFinal(indice, valores.length)
             : new THREE.Vector3((indice - (valores.length - 1) / 2) * espacamento, 0, 0);
           const inicial = usaMao
@@ -191,8 +190,6 @@ export default function Dado3DOverlay({ rolagem, onClose, cinematicaExterna = fa
           mestre = criarMestre();
           scene.add(mestre.grupo);
           timerResultados = window.setTimeout(() => setMostrarResultados(true), DURACAO_MAO + DURACAO_QUEDA);
-        } else if (grade) {
-          timerResultados = window.setTimeout(() => setMostrarResultados(true), DURACAO_GIRO + DURACAO_POUSO);
         }
         inicio = performance.now();
         frame = requestAnimationFrame(animar);
@@ -204,7 +201,7 @@ export default function Dado3DOverlay({ rolagem, onClose, cinematicaExterna = fa
     function animar(agora) {
       if (!dados.length || cancelado) return;
       const decorrido = agora - inicio;
-      const usaMao = dados.length > 3 && !cinematicaExterna;
+      const usaMao = dados.length > 3;
 
       if (usaMao && decorrido < DURACAO_MAO) {
         const pulso = Math.sin(decorrido / 65);
@@ -260,7 +257,7 @@ export default function Dado3DOverlay({ rolagem, onClose, cinematicaExterna = fa
         materiais.filter(Boolean).forEach((mat) => mat.dispose?.());
       });
     };
-  }, [rolagem, onClose, cinematicaExterna]);
+  }, [rolagem, onClose]);
 
   if (!rolagem) return null;
   const { d20 } = rolagem;

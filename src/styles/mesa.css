@@ -1732,29 +1732,6 @@
   height: 100%;
 }
 
-.dado3d-cinematica {
-  overflow: hidden;
-  background: #030814;
-}
-
-.dado3d-cinematica video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.dado3d-pular {
-  position: absolute;
-  right: 13%;
-  bottom: 10%;
-  padding: 7px 13px;
-  border: 1px solid rgba(200, 170, 110, 0.45);
-  border-radius: 999px;
-  color: var(--m-texto-1);
-  background: rgba(5, 15, 33, 0.82);
-  cursor: pointer;
-}
-
 .dado3d-valores {
   position: absolute;
   left: 12%;
