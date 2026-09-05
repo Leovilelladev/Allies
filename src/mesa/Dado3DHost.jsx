@@ -10,7 +10,7 @@ export default function Dado3DHost({ cenaId, scale, stagePos }) {
 
   useEffect(() => {
     const receber = (event) => {
-      if (!event.detail?.d20?.valores?.length) return;
+      if (!event.detail?.visual?.modelos?.length) return;
       setRolagem({ ...event.detail, nonce: crypto.randomUUID() });
     };
     window.addEventListener(EVENTO_ROLAGEM_3D, receber);

@@ -96,24 +96,33 @@ export default function Dado3DOverlay({ rolagem, onClose, transformacaoMapa }) {
     adicionarParede(cameraInicial.centroX, cameraInicial.centroY - limiteY, limiteX + 0.4, 0.08);
     adicionarParede(cameraInicial.centroX, cameraInicial.centroY + limiteY, limiteX + 0.4, 0.08);
 
-    new GLTFLoader().load('/models/d20_allies_leo_v6.glb', (gltf) => {
+    const modelos = rolagem.visual.modelos.slice(0, 20);
+    const tipos = [...new Set(modelos.map(m => m.modelo))];
+    const loader = new GLTFLoader();
+    Promise.all(tipos.map(async tipo => [tipo, await loader.loadAsync(`/models/reliquia_leo/d${tipo}_leo.glb`)]))
+    .then((carregados) => {
       if (cancelado) return;
-      const valores = rolagem.d20.valores.slice(0, 6);
-      dados = valores.map((valor, indice) => {
+      const assets = new Map(carregados);
+      dados = modelos.map(({ modelo, face: valor }, indice) => {
+        const gltf = assets.get(modelo);
         const dado = gltf.scene.clone(true);
-        const escala = escalaPara(valores.length);
+        const escala = escalaPara(modelos.length);
         dado.scale.setScalar(escala);
         scene.add(dado);
         dado.updateMatrixWorld(true);
         const face = dado.getObjectByName(`Face_${String(valor).padStart(2, '0')}`);
         let alvo = new THREE.Quaternion();
         if (face) {
-          const corpo = dado.getObjectByName('D20_Allies_Leo');
+          const corpo = dado.getObjectByName('DiceBody');
           const centro = corpo?.getWorldPosition(new THREE.Vector3()) || new THREE.Vector3();
-          alvo = new THREE.Quaternion().setFromUnitVectors(
-            face.getWorldPosition(new THREE.Vector3()).sub(centro).normalize(),
-            new THREE.Vector3(0, 0, 1)
-          );
+          if (face.userData.normal && face.userData.up) {
+            const normal = new THREE.Vector3(...face.userData.normal).normalize();
+            const up = new THREE.Vector3(...face.userData.up).normalize();
+            const right = new THREE.Vector3().crossVectors(up, normal).normalize();
+            alvo.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, normal)).invert();
+          } else {
+            alvo.setFromUnitVectors(face.getWorldPosition(new THREE.Vector3()).sub(centro).normalize(), new THREE.Vector3(0, 0, 1));
+          }
         }
         const raio = escala * 1.62;
         const corpoFisico = new CANNON.Body({
@@ -140,7 +149,7 @@ export default function Dado3DOverlay({ rolagem, onClose, transformacaoMapa }) {
       ultimoQuadro = inicio;
       timer = window.setTimeout(() => setMostrarResultados(true), DURACAO_FISICA + DURACAO_POUSO - 80);
       frame = requestAnimationFrame(animar);
-    }, undefined, onClose);
+    }).catch(onClose);
 
     function animar(agora) {
       if (!dados.length || cancelado) return;
@@ -180,14 +189,15 @@ export default function Dado3DOverlay({ rolagem, onClose, transformacaoMapa }) {
     };
   }, [rolagem, onClose]);
 
-  const { d20 } = rolagem;
+  const { d20, visual } = rolagem;
   return (
     <div className="dado3d-overlay dado3d-overlay--mapa" role="status" aria-live="polite">
       <canvas ref={canvasRef} className="dado3d-canvas" />
       <div className={`dado3d-resultado${mostrarResultados ? '' : ' is-oculto'}`}>
-        <span>{rolagem.secreta ? 'Rolagem secreta' : rolagem.titulo || 'd20'}</span>
-        <strong className={d20.critico ? 'is-critico' : d20.falha ? 'is-falha' : ''}>{d20.total}</strong>
-        {d20.valores.length > 1 && <small>{d20.valores.join(' / ')} · {d20.multiplos ? 'soma' : d20.modo}</small>}
+        <span>{rolagem.secreta ? 'Rolagem secreta' : rolagem.titulo || 'Dados'}</span>
+        <strong className={d20?.critico ? 'is-critico' : d20?.falha ? 'is-falha' : ''}>{visual.total}</strong>
+        <small>{visual.detalhe}</small>
+        {visual.modelos.length > 20 && <small>Exibindo 20 de {visual.modelos.length} modelos; total completo acima.</small>}
       </div>
       <button className="dado3d-limpar" onClick={onClose}>Limpar dados</button>
     </div>
