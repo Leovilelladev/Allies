@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { sb } from '../shared/supabaseClient';
 import { rolarFormula, rolarD20, enviarRolagem, enviarTexto, fmtMod, MODOS } from './rolagem';
+import { anunciarRolagem3D } from './diceEvents';
 
 const DADOS_RAPIDOS = [4, 6, 8, 10, 12, 20, 100];
 
@@ -100,7 +101,7 @@ function CardRolagem({ r, alvo, onAplicarDano }) {
   );
 }
 
-export default function ChatPanel({ cenaId, userId, autorNome, modoRolagem, onModoRolagem, alvo, onAplicarDano }) {
+export default function ChatPanel({ cenaId, userId, autorNome, ehMestre, modoRolagem, onModoRolagem, alvo, onAplicarDano }) {
   const [mensagens, setMensagens] = useState([]);
   const [texto, setTexto] = useState('');
   const [erro, setErro] = useState('');
@@ -176,6 +177,23 @@ export default function ChatPanel({ cenaId, userId, autorNome, modoRolagem, onMo
       const linha = linhaCrua.trim();
       if (!linha) return;
 
+      const comandoSecreto = linha.match(/^\/gmroll\s+(.+)$/i);
+      if (comandoSecreto) {
+        if (!ehMestre) {
+          setErro('Apenas o Mestre pode fazer uma rolagem secreta.');
+          return;
+        }
+        const expressao = comandoSecreto[1].trim();
+        const r = rolarFormula(expressao);
+        if (!r) {
+          setErro(`Não entendi "${expressao}". Tente /gmroll 1d20.`);
+          return;
+        }
+        anunciarRolagem3D({ categoria: 'dado', titulo: `Secreto · ${expressao}`, dados: r, secreta: true });
+        setErro('');
+        return;
+      }
+
       const comando = linha.match(/^\/(r|roll|rolar)\s+(.+)$/i);
       if (comando) {
         const expressao = comando[2].trim();
@@ -208,7 +226,7 @@ export default function ChatPanel({ cenaId, userId, autorNome, modoRolagem, onMo
         setErro('Falha ao enviar. Tente de novo.');
       }
     },
-    [cenaId, userId, autorNome, modoRolagem]
+    [cenaId, userId, autorNome, ehMestre, modoRolagem]
   );
 
   const submeter = (e) => {

@@ -2169,7 +2169,6 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
 
   return (
     <div className={`mesa-wrap ${dockAberto ? 'com-dock' : ''}`}>
-      <Dado3DHost />
       {/* Barra superior: contexto e navegação */}
       <header className="mesa-topbar">
         <button className="mesa-btn mesa-btn--fantasma" onClick={onVoltarCampanha}>
@@ -2259,7 +2258,9 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
       </nav>
 
       {/* Canvas */}
-      <div ref={containerRef} className="mesa-stage" />
+      <div ref={containerRef} className="mesa-stage">
+        <Dado3DHost cenaId={cenaId} scale={scale} stagePos={stagePos} />
+      </div>
 
       {ferramenta === 'parede' && ehMestre && (
         <div className="ferramenta-config">
@@ -2559,6 +2560,7 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
             {abaDock === 'chat' && (
               <ChatPanel
                 cenaId={cenaId}
+                ehMestre={ehMestre}
                 userId={perfil.id}
                 autorNome={perfil.nome}
                 modoRolagem={modoRolagem}
