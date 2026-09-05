@@ -12,6 +12,7 @@ import ModalSessao from './components/ModalSessao';
 import ModalNovaFicha from './components/ModalNovaFicha';
 import ModalConvidar from './components/ModalConvidar';
 import ModalCriacaoCampeaoHextech from './components/ModalCriacaoCampeaoHextech';
+import Alinho from './Alinho';
 
 function initials(nome) {
   if (!nome) return 'A';
@@ -943,6 +944,7 @@ export default function Home({
       </div>
 
       {/* Modais */}
+      <Alinho key={usuarioAtual.id} usuarioId={usuarioAtual.id} />
       {modalCampanha && (
         <ModalCampanha
           campanha={modalCampanha.campanha}

@@ -491,13 +491,31 @@
   text-overflow: ellipsis;
 }
 .ficha-seletor {
-  background: none;
-  border: none;
-  padding: 0;
+  background: var(--m-medio);
+  border: 1px solid var(--m-ouro-forte);
+  border-radius: 8px;
+  padding: 8px 10px;
   cursor: pointer;
+  width: 100%;
   max-width: 100%;
+  min-height: 40px;
+  color-scheme: dark;
 }
-.ficha-seletor:focus { outline: none; }
+.ficha-seletor:hover { border-color: var(--m-ouro-claro); }
+.ficha-seletor:focus-visible {
+  outline: 2px solid var(--m-ouro-claro);
+  outline-offset: 3px;
+}
+.ficha-seletor option { background: var(--m-medio); color: var(--m-texto); }
+.ficha-elenco-rotulo {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--m-ouro-claro);
+  margin-bottom: 4px;
+}
+.ficha-identidade .ficha-subtitulo { margin-top: 4px; line-height: 1.5; }
 .ficha-subtitulo { font-size: 11.5px; color: var(--m-texto-3); }
 
 .ficha-vitais {

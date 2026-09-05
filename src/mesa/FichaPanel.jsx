@@ -4,6 +4,7 @@ import { executarRolagemAcao, extrairStatsContexto, aplicarDescansoAcoes } from 
 import { rolarD20, rolarFormula, enviarRolagem, fmtMod, MODOS } from './rolagem';
 import { enviarImagem, importarDeUrl } from './imagens';
 import { lerFicha, montarAtualizacao } from './fichaLegado';
+import { encontrarFicha } from './selecaoFicha';
 
 export const ATRIBUTOS = [
   { id: 'for', sigla: 'FOR', nome: 'Força' },
@@ -136,9 +137,11 @@ export default function FichaPanel({
     lista.sort((a, b) => a.id - b.id);
     setFichas(lista);
     setFichaId((atual) => {
-      if (atual && lista.some((f) => f.id === atual)) return atual;
+      const ativa = encontrarFicha(lista, atual);
+      if (ativa) return ativa.id;
       const salva = localStorage.getItem(chaveLocal);
-      if (salva && lista.some((f) => f.id === salva)) return salva;
+      const lembrada = encontrarFicha(lista, salva);
+      if (lembrada) return lembrada.id;
       const minha = lista.find((f) => Number(f.usuario_id) === Number(userId));
       return (minha || lista[0])?.id ?? null;
     });
@@ -175,7 +178,7 @@ export default function FichaPanel({
     if (fichaId) localStorage.setItem(chaveLocal, fichaId);
   }, [fichaId, chaveLocal]);
 
-  const fichaBruta = useMemo(() => fichas.find((f) => f.id === fichaId) ?? null, [fichas, fichaId]);
+  const fichaBruta = useMemo(() => encontrarFicha(fichas, fichaId), [fichas, fichaId]);
   const ficha = useMemo(() => (fichaBruta ? lerFicha(fichaBruta) : null), [fichaBruta]);
   const souDono = Number(fichaBruta?.usuario_id) === Number(userId) || ehMestre;
 
@@ -653,8 +656,23 @@ export default function FichaPanel({
           style={{ display: 'none' }}
         />
         <div className="ficha-identidade">
+          <span className="ficha-elenco-rotulo">
+            {ehMestre ? 'Elenco da campanha' : 'Suas fichas'} · {fichas.length}
+          </span>
           {fichas.length > 1 ? (
-            <select className="ficha-seletor" value={fichaId} onChange={(e) => setFichaId(e.target.value)}>
+            <select
+              className="ficha-seletor"
+              aria-label="Escolher ficha do personagem"
+              value={fichaId}
+              onChange={(e) => {
+                const escolhida = encontrarFicha(fichas, e.target.value);
+                if (!escolhida) return;
+                setFichaId(escolhida.id);
+                setEditando(false);
+                setRascunho(null);
+                setAjustePv('');
+              }}
+            >
               {fichas.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.nome}
@@ -804,7 +822,7 @@ export default function FichaPanel({
             ))}
           </div>
 
-          <div className="ficha-conteudo">
+          <div className="ficha-conteudo" key={fichaId}>
             {aba === 'atributos' && (
               <>
                 <div className="ficha-atributos">
