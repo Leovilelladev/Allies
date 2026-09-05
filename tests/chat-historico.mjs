@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import { mesclarMensagens } from '../src/mesa/chatHistorico.js';
+const data='2026-09-05T12:00:00Z';
+const msg=id=>({id,criado_em:data,texto:String(id)});
+assert.deepEqual(mesclarMensagens([msg(10)],[msg(2),msg(9)]).map(m=>m.id),[2,9,10]);
+assert.equal(mesclarMensagens([msg(10)],[msg(10)]).length,1);
+const antigas=Array.from({length:200},(_,i)=>msg(i+1));
+const recentes=Array.from({length:200},(_,i)=>msg(i+201));
+assert.equal(mesclarMensagens([...recentes,msg(401)],[...antigas,...recentes]).length,401);
+assert.equal(mesclarMensagens([msg(401)],recentes).at(-1).id,401);
+console.log('ok: histórico ordenado, paginação e eventos sem duplicação');

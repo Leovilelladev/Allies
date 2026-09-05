@@ -42,4 +42,12 @@ checa('parede reduz o campo de visão', comParede.size < semParede.size, true);
 checa('enxerga contornando a parede pelo topo', comParede.has('3,-2') || comParede.has('2,-2'), true);
 
 console.log(falhas === 0 ? '\nTUDO CERTO' : `\n${falhas} FALHA(S)`);
+const continua = { ...parede, y1: -1000, y2: 1000 };
+const emendada = [{ ...continua, y2: 175 }, { ...continua, y1: 175 }];
+checa('emenda de paredes não revela célula atrás', celulasVisiveisDoPonto(35,175,420,70,emendada).has('3,2'), false);
+checa('segmentos colineares separados não bloqueiam', segmentosCruzam(0,0,10,0,20,0,30,0), false);
+checa('segmentos colineares sobrepostos bloqueiam', segmentosCruzam(0,0,10,0,5,0,30,0), true);
+for (const [tipo, aberta, esperado] of [['parede',false,false],['porta',false,false],['porta',true,true],['janela',false,true]]) {
+  checa(`célula atrás: ${tipo}, aberta=${aberta}`, celulasVisiveisDoPonto(35,140,420,70,[{...parede,tipo,aberta}]).has('3,2'), esperado);
+}
 process.exit(falhas ? 1 : 0);

@@ -24,7 +24,16 @@ export function segmentosCruzam(ax, ay, bx, by, cx, cy, dx, dy) {
   const d2 = (bx - ax) * (dy - ay) - (by - ay) * (dx - ax);
   const d3 = (dx - cx) * (ay - cy) - (dy - cy) * (ax - cx);
   const d4 = (dx - cx) * (by - cy) - (dy - cy) * (bx - cx);
-  return d1 * d2 < 0 && d3 * d4 < 0;
+  const eps = 1e-7;
+  const noSegmento = (px, py, ux, uy, vx, vy) =>
+    px >= Math.min(ux, vx) - eps && px <= Math.max(ux, vx) + eps &&
+    py >= Math.min(uy, vy) - eps && py <= Math.max(uy, vy) + eps;
+  if (d1 * d2 < 0 && d3 * d4 < 0) return true;
+  // Contatos nas pontas também bloqueiam: segmentos adjacentes não são frestas.
+  return (Math.abs(d1) <= eps && noSegmento(cx, cy, ax, ay, bx, by)) ||
+    (Math.abs(d2) <= eps && noSegmento(dx, dy, ax, ay, bx, by)) ||
+    (Math.abs(d3) <= eps && noSegmento(ax, ay, cx, cy, dx, dy)) ||
+    (Math.abs(d4) <= eps && noSegmento(bx, by, cx, cy, dx, dy));
 }
 
 /** Existe parede entre os dois pontos? */

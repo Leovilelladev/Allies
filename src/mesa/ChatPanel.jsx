@@ -2,8 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { sb } from '../shared/supabaseClient';
 import { rolarFormula, rolarD20, enviarRolagem, enviarTexto, fmtMod, MODOS } from './rolagem';
 import { anunciarRolagem3D } from './diceEvents';
+import { mesclarMensagens } from './chatHistorico';
 
 const DADOS_RAPIDOS = [4, 6, 8, 10, 12, 20, 100];
+async function publicarRolagem(args) {
+  const { error } = await enviarRolagem(args);
+  if (error) throw error;
+}
 
 // Um card de rolagem no chat
 function CardRolagem({ r, alvo, onAplicarDano }) {
@@ -105,10 +110,23 @@ export default function ChatPanel({ cenaId, userId, autorNome, ehMestre, modoRol
   const [mensagens, setMensagens] = useState([]);
   const [texto, setTexto] = useState('');
   const [erro, setErro] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const envioRef = useRef(false);
   const listaRef = useRef(null);
+  const [maisAntigas, setMaisAntigas] = useState(false);
+  const [carregando, setCarregando] = useState(false);
+  const geracaoRef = useRef(0);
+  const rolarFimRef = useRef(true);
+  const paginaRef = useRef(false);
 
   useEffect(() => {
     let ativo = true;
+    geracaoRef.current += 1;
+    setMensagens([]);
+    setCarregando(false);
+    setMaisAntigas(false);
+    setErro('');
+    rolarFimRef.current = true;
     if (!cenaId) return;
 
     async function carregar() {
@@ -116,14 +134,16 @@ export default function ChatPanel({ cenaId, userId, autorNome, ehMestre, modoRol
         .from('mesa_chat')
         .select('*')
         .eq('cena_id', cenaId)
-        .order('criado_em', { ascending: true })
+        .order('criado_em', { ascending: false })
+        .order('id', { ascending: false })
         .limit(200);
       if (!ativo) return;
       if (error) {
-        console.error('Falha ao carregar chat:', error.message);
+        setErro('Falha ao carregar o histórico. Reabra a aba para tentar novamente.');
         return;
       }
-      setMensagens(data ?? []);
+      setMensagens(prev => mesclarMensagens(prev, data ?? []));
+      setMaisAntigas(data?.length === 200);
     }
     carregar();
 
@@ -133,26 +153,51 @@ export default function ChatPanel({ cenaId, userId, autorNome, ehMestre, modoRol
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'mesa_chat', filter: `cena_id=eq.${cenaId}` },
         (payload) => {
-          setMensagens((prev) => (prev.some((m) => m.id === payload.new.id) ? prev : [...prev, payload.new]));
+          if (ativo) setMensagens(prev => mesclarMensagens(prev, [payload.new]));
         }
       )
       .subscribe();
 
     return () => {
       ativo = false;
+      geracaoRef.current += 1;
       sb.removeChannel(canal);
     };
   }, [cenaId]);
 
   useEffect(() => {
-    if (listaRef.current) listaRef.current.scrollTop = listaRef.current.scrollHeight;
+    if (listaRef.current && rolarFimRef.current) listaRef.current.scrollTop = listaRef.current.scrollHeight;
   }, [mensagens]);
 
+  const carregarAnteriores = async () => {
+    const primeira = mensagens[0];
+    if (!primeira || paginaRef.current) return;
+    const geracao = geracaoRef.current;
+    paginaRef.current = true; setCarregando(true);
+    const el = listaRef.current;
+    const altura = el?.scrollHeight || 0;
+    const topo = el?.scrollTop || 0;
+    rolarFimRef.current = false;
+    try {
+      const { data, error } = await sb.from('mesa_chat').select('*').eq('cena_id', cenaId)
+        .or(`criado_em.lt.${primeira.criado_em},and(criado_em.eq.${primeira.criado_em},id.lt.${primeira.id})`)
+        .order('criado_em', { ascending: false }).order('id', { ascending: false }).limit(200);
+      if (geracao !== geracaoRef.current) return;
+      if (error) { setErro('Não foi possível carregar mensagens anteriores.'); return; }
+      setMensagens(prev => mesclarMensagens(prev, data || []));
+      setMaisAntigas(data?.length === 200);
+      requestAnimationFrame(() => {
+        if (geracao === geracaoRef.current && el) el.scrollTop = topo + el.scrollHeight - altura;
+      });
+    } catch { if (geracao === geracaoRef.current) setErro('Falha de conexão ao carregar histórico.'); }
+    finally { paginaRef.current = false; if (geracao === geracaoRef.current) setCarregando(false); }
+  };
+
   const rolarDadoRapido = useCallback(
-    (faces) => {
+    async (faces) => {
       if (faces === 20) {
         const r = rolarD20({ modo: modoRolagem });
-        enviarRolagem({
+        await publicarRolagem({
           cenaId,
           userId,
           autorNome,
@@ -162,7 +207,7 @@ export default function ChatPanel({ cenaId, userId, autorNome, ehMestre, modoRol
       }
 
       const r = rolarFormula(`1d${faces}`);
-      enviarRolagem({
+      await publicarRolagem({
         cenaId,
         userId,
         autorNome,
@@ -181,13 +226,13 @@ export default function ChatPanel({ cenaId, userId, autorNome, ehMestre, modoRol
       if (comandoSecreto) {
         if (!ehMestre) {
           setErro('Apenas o Mestre pode fazer uma rolagem secreta.');
-          return;
+          return false;
         }
         const expressao = comandoSecreto[1].trim();
         const r = rolarFormula(expressao);
         if (!r) {
           setErro(`Não entendi "${expressao}". Tente /gmroll 1d20.`);
-          return;
+          return false;
         }
         anunciarRolagem3D({ categoria: 'dado', titulo: `Secreto · ${expressao}`, dados: r, secreta: true });
         setErro('');
@@ -200,16 +245,16 @@ export default function ChatPanel({ cenaId, userId, autorNome, ehMestre, modoRol
         // /r d20 usa o modo de vantagem/desvantagem ativo
         if (/^d20$/i.test(expressao) || /^1d20$/i.test(expressao)) {
           const r = rolarD20({ modo: modoRolagem });
-          await enviarRolagem({ cenaId, userId, autorNome, payload: { categoria: 'dado', titulo: 'd20', d20: r } });
+          await publicarRolagem({ cenaId, userId, autorNome, payload: { categoria: 'dado', titulo: 'd20', d20: r } });
           setErro('');
           return;
         }
         const r = rolarFormula(expressao);
         if (!r) {
           setErro(`Não entendi "${expressao}". Tente 1d20, 2d6+3, d100.`);
-          return;
+          return false;
         }
-        await enviarRolagem({
+        await publicarRolagem({
           cenaId,
           userId,
           autorNome,
@@ -222,24 +267,35 @@ export default function ChatPanel({ cenaId, userId, autorNome, ehMestre, modoRol
       setErro('');
       const { error } = await enviarTexto({ cenaId, userId, autorNome, texto: linha });
       if (error) {
-        console.error('Falha ao enviar mensagem:', error.message);
-        setErro('Falha ao enviar. Tente de novo.');
+        throw error;
       }
     },
     [cenaId, userId, autorNome, ehMestre, modoRolagem]
   );
 
-  const submeter = (e) => {
+  const submeter = async (e) => {
     e.preventDefault();
-    if (!texto.trim()) return;
+    if (!texto.trim() || envioRef.current) return;
     const enviado = texto;
-    setTexto('');
-    enviar(enviado);
+    envioRef.current = true; setEnviando(true);
+    const geracao = geracaoRef.current;
+    try {
+      const resultado = await enviar(enviado);
+      if (resultado !== false && geracao === geracaoRef.current) setTexto(atual => atual === enviado ? '' : atual);
+    } catch {
+      if (geracao === geracaoRef.current) setErro('Não foi possível confirmar o envio. O texto foi mantido; confira o chat antes de tentar novamente.');
+    } finally { envioRef.current = false; setEnviando(false); }
   };
 
   return (
     <div className="chat">
-      <div className="chat-lista" ref={listaRef}>
+      <div className="chat-lista" ref={listaRef} onScroll={e => {
+        const el = e.currentTarget;
+        rolarFimRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      }}>
+        {maisAntigas && <button className="mesa-btn" disabled={carregando} onClick={carregarAnteriores}>
+          {carregando ? 'Carregando…' : 'Carregar mensagens anteriores'}
+        </button>}
         {mensagens.length === 0 && (
           <div className="dock-vazio">Nada por aqui ainda. Role um dado ou mande uma mensagem.</div>
         )}
@@ -280,7 +336,7 @@ export default function ChatPanel({ cenaId, userId, autorNome, ehMestre, modoRol
         </div>
         <div className="dados-botoes">
           {DADOS_RAPIDOS.map((f) => (
-            <button key={f} className="dado-btn" onClick={() => rolarDadoRapido(f)}>
+            <button key={f} className="dado-btn" onClick={() => rolarDadoRapido(f).catch(() => setErro('Não foi possível confirmar a rolagem. Confira o chat antes de tentar novamente.'))}>
               d{f}
             </button>
           ))}
@@ -298,8 +354,8 @@ export default function ChatPanel({ cenaId, userId, autorNome, ehMestre, modoRol
           }}
           placeholder="Mensagem ou /r 2d6+3"
         />
-        <button className="mesa-btn mesa-btn--primario" type="submit">
-          Enviar
+        <button className="mesa-btn mesa-btn--primario" type="submit" disabled={enviando}>
+          {enviando ? 'Enviando…' : 'Enviar'}
         </button>
       </form>
     </div>

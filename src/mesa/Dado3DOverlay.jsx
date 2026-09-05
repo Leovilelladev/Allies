@@ -17,9 +17,11 @@ function escalaPara(qtd) {
 
 export default function Dado3DOverlay({ rolagem, onClose, transformacaoMapa }) {
   const canvasRef = useRef(null);
+  const renderizarRef = useRef(null);
   const transformacaoRef = useRef(transformacaoMapa);
   const [mostrarResultados, setMostrarResultados] = useState(false);
   transformacaoRef.current = transformacaoMapa;
+  useEffect(() => { renderizarRef.current?.(); }, [transformacaoMapa]);
 
   useEffect(() => {
     if (!rolagem || !canvasRef.current) return undefined;
@@ -173,11 +175,18 @@ export default function Dado3DOverlay({ rolagem, onClose, transformacaoMapa }) {
       }
       transformarCamera();
       renderer.render(scene, camera);
-      frame = requestAnimationFrame(animar);
+      if (decorrido < DURACAO_FISICA + DURACAO_POUSO) frame = requestAnimationFrame(animar);
     }
+
+    renderizarRef.current = () => {
+      if (cancelado || !dados.length) return;
+      transformarCamera();
+      renderer.render(scene, camera);
+    };
 
     return () => {
       cancelado = true;
+      renderizarRef.current = null;
       cancelAnimationFrame(frame);
       window.clearTimeout(timer);
       renderer.dispose();

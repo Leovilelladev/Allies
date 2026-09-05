@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node tests/visao.mjs && node tests/permissoes-vtt.mjs && node tests/dice-models.mjs",
+    "test": "node tests/visao.mjs && node tests/nevoa.mjs && node tests/permissoes-vtt.mjs && node tests/dice-models.mjs && node tests/chat-historico.mjs",
     "test:perf": "node tests/perf-visao.mjs",
     "preview": "vite preview"
   },

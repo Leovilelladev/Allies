@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { sb } from '../shared/supabaseClient';
 
-export default function SoundboardPanel({ cenaId, campanhaId, ehMestre }) {
+export default function SoundboardPanel({ campanhaId, ehMestre, audio }) {
   const [sons, setSons] = useState([]);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
@@ -43,30 +43,6 @@ export default function SoundboardPanel({ cenaId, campanhaId, ehMestre }) {
     };
   }, [campanhaId]);
 
-  // Canal de transmissão: toca o som para todos na mesma cena
-  const canalSomRef = useRef(null);
-  useEffect(() => {
-    if (!cenaId) return;
-    const canal = sb
-      .channel(`mesa-sons-tocar-${cenaId}`)
-      .on('broadcast', { event: 'tocar' }, ({ payload }) => {
-        new Audio(payload.url).play().catch(() => {});
-      })
-      .subscribe();
-    canalSomRef.current = canal;
-    return () => {
-      sb.removeChannel(canal);
-      canalSomRef.current = null;
-    };
-  }, [cenaId]);
-
-  const tocar = useCallback((som) => {
-    const { data } = sb.storage.from('mesa-sons').getPublicUrl(som.caminho_arquivo);
-    const url = data?.publicUrl;
-    if (!url) return;
-    new Audio(url).play().catch(() => {});
-    canalSomRef.current?.send({ type: 'broadcast', event: 'tocar', payload: { url } });
-  }, []);
 
   const enviarArquivo = useCallback(
     async (e) => {
@@ -100,13 +76,17 @@ export default function SoundboardPanel({ cenaId, campanhaId, ehMestre }) {
 
   return (
     <div className="soundboard">
+      <label>Volume local <input aria-label="Volume local" type="range" min="0" max="1" step="0.05"
+        value={audio.volume} onChange={e => audio.ajustarVolume(e.target.value)} /></label>
+      <button className="mesa-btn" onClick={audio.parar}>Parar sons neste dispositivo</button>
+      {audio.erro && <p role="alert">{audio.erro}</p>}
       <div className="soundboard-lista">
         {sons.length === 0 && (
           <span className="dock-vazio">Nenhum som cadastrado nesta campanha.</span>
         )}
         {sons.map((som) => (
           <div key={som.id} className="soundboard-item">
-            <button className="soundboard-play" onClick={() => tocar(som)}>
+            <button className="soundboard-play" onClick={() => audio.tocar(som)}>
               ▶ {som.nome}
             </button>
             {ehMestre && (

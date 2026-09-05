@@ -10,6 +10,7 @@ import {
 import ChatPanel from './ChatPanel';
 import IniciativaPanel from './IniciativaPanel';
 import SoundboardPanel from './SoundboardPanel';
+import useAudioMesa from './useAudioMesa';
 import FichaPanel from './FichaPanel';
 import { lerFicha, montarAtualizacao } from './fichaLegado';
 import { lerUsuarioLocal } from './Mesa';
@@ -18,6 +19,7 @@ import { METROS_POR_QUADRADO as METROS } from './constantes';
 import { COR, CSS, FONTE_SANS } from './paleta';
 import { podeControlarToken, podeCriarTokenDeFicha } from './permissoes';
 import Dado3DHost from './Dado3DHost';
+import { tokenVisivelNaNevoa, tokensDoObservador } from './nevoa';
 
 const COR_TOKEN_PADRAO = '#785a28';
 import { CONDICAO_POR_ID } from './condicoes';
@@ -31,6 +33,7 @@ import {
 import { MODOS, rolarD20, rolarFormula, enviarRolagem } from './rolagem';
 import { enviarImagem, enviarMapa, importarDeUrl } from './imagens';
 import { sb } from '../shared/supabaseClient';
+import { useToast } from '../shared/Toast';
 
 const ESCALA_MIN = 0.2;
 const ESCALA_MAX = 4;
@@ -120,6 +123,10 @@ function linhaParaToken(row) {
 }
 
 export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampanha }) {
+  const audioMesa = useAudioMesa(cenaId);
+  const { toast } = useToast();
+  const portasPendentesRef = useRef(new Set());
+  useEffect(() => { if (audioMesa.erro) toast(audioMesa.erro, 'erro'); }, [audioMesa.erro, toast]);
   const containerRef = useRef(null);
   const pixiRef = useRef(null);
   const liveRef = useRef({});
@@ -139,6 +146,7 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
   const [fogAtivo, setFogAtivo] = useState(false);
   const [fogRevelado, setFogRevelado] = useState([]);
   const [verComoJogador, setVerComoJogador] = useState(false);
+  const [observadorId, setObservadorId] = useState('');
   const [ferramenta, setFerramenta] = useState('selecionar');
   const [abaDock, setAbaDock] = useState('ficha');
   const [dockAberto, setDockAberto] = useState(true);
@@ -253,23 +261,30 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
   const autoExplorar = cena?.auto_explorar !== false;
   const comoJogador = !ehMestre || verComoJogador;
 
-  // Tokens que enxergam por mim: os meus (pela ficha). O mestre vendo como
-  // jogador enxerga pelo grupo todo — qualquer token com ficha vinculada.
+  const observadores = useMemo(() => {
+    const donos = new Map();
+    for (const t of tokensComVida) {
+      if (t.fichaId && t.donoId != null && String(t.donoId) !== String(perfil?.id)) {
+        const id = String(t.donoId);
+        donos.set(id, [...(donos.get(id) || []), t.label || 'Personagem']);
+      }
+    }
+    return [...donos].map(([id, nomes]) => ({ id, nome: nomes.join(' / ') }));
+  }, [tokensComVida, perfil?.id]);
+  const donoDaVisao = ehMestre
+    ? (observadores.some(o => o.id === observadorId) ? observadorId : observadores[0]?.id)
+    : perfil?.id;
+
   const meusTokensDeVisao = useMemo(() => {
-    if (!perfil) return [];
-    return tokensComVida.filter((t) => {
-      if (!t.fichaId) return false;
-      return ehMestre ? true : t.donoId === perfil.id;
-    });
-  }, [tokensComVida, perfil, ehMestre]);
+    return tokensDoObservador(tokensComVida, donoDaVisao);
+  }, [tokensComVida, donoDaVisao]);
 
   const paredesQueBloqueiam = useMemo(() => paredes.filter(bloqueiaVisao), [paredes]);
 
-  // null = sem limite de visão. De dia sem paredes não há o que calcular;
-  // com paredes, mesmo de dia a visão para na parede.
+  // null = névoa manual/desligada. A visão dinâmica sempre usa os tokens do
+  // observador, inclusive quando a última porta bloqueadora é aberta.
   const celulasVisiveis = useMemo(() => {
     if (!fogAtivo || !visaoDinamica) return null;
-    if (iluminacao === 'dia' && paredesQueBloqueiam.length === 0) return null;
 
     const set = new Set();
     for (const t of meusTokensDeVisao) {
@@ -286,6 +301,9 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
     }
     return set;
   }, [fogAtivo, visaoDinamica, iluminacao, meusTokensDeVisao, gridSize, paredesQueBloqueiam]);
+  const contextoNevoa = useMemo(() => ({
+    comoJogador, fogAtivo, celulasVisiveis, fogRevelado: new Set(fogRevelado), gridSize,
+  }), [comoJogador, fogAtivo, celulasVisiveis, fogRevelado, gridSize]);
 
   liveRef.current.ferramenta = ferramenta;
   liveRef.current.ehMestre = ehMestre;
@@ -673,7 +691,8 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
   // Revela permanentemente o que o token passou a enxergar (memória do mapa)
   const explorarComToken = useCallback(
     (token, x, y) => {
-      if (!fogAtivo || !visaoDinamica || !autoExplorar) return;
+      if (!fogAtivo || !visaoDinamica || !autoExplorar || !token.fichaId || token.donoId == null) return;
+      if (ehMestre && String(token.donoId) === String(perfil?.id)) return;
       const raioM = raioVisaoMetros(token, iluminacao);
       if (!raioM) return;
       const raioPx =
@@ -700,8 +719,32 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
           if (error) console.error('Falha ao gravar a exploração:', error.message);
         });
     },
-    [fogAtivo, visaoDinamica, autoExplorar, iluminacao, gridSize, cenaId, paredesQueBloqueiam]
+    [fogAtivo, visaoDinamica, autoExplorar, iluminacao, gridSize, cenaId, paredesQueBloqueiam, ehMestre, perfil?.id]
   );
+
+  // Mudanças de porta/luz também exploram, mesmo sem arrastar o personagem.
+  // O mestre registra o grupo real, nunca NPCs nem apenas a prévia escolhida.
+  useEffect(() => {
+    if (sincronizando || !fogAtivo || !visaoDinamica || !autoExplorar || !celulasVisiveis) return;
+    const vistas = new Set(ehMestre ? [] : celulasVisiveis);
+    if (ehMestre) {
+      for (const token of tokensComVida) {
+        if (!token.fichaId || token.donoId == null || String(token.donoId) === String(perfil?.id)) continue;
+        const raio = raioVisaoMetros(token, iluminacao);
+        if (!raio) continue;
+        for (const chave of celulasVisiveisDoPonto(token.x, token.y,
+          ((raio === Infinity ? RAIO_DIA_M : raio) / METROS_POR_QUADRADO) * gridSize,
+          gridSize, paredesQueBloqueiam)) vistas.add(chave);
+      }
+    }
+    const set = fogRevelaSetRef.current;
+    const antes = set.size;
+    for (const chave of vistas) set.add(chave);
+    if (set.size === antes) return;
+    setFogRevelado([...set]);
+    salvarNevoa();
+  }, [sincronizando, fogAtivo, visaoDinamica, autoExplorar, celulasVisiveis, ehMestre, salvarNevoa,
+    tokensComVida, perfil?.id, iluminacao, gridSize, paredesQueBloqueiam]);
 
   const moverTokenFim = useCallback(
     (id, rawX, rawY) => {
@@ -894,16 +937,21 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
     });
   }, []);
 
-  const alternarPorta = useCallback((parede) => {
+  const alternarPorta = useCallback(async (parede) => {
+    if (!ehMestre || portasPendentesRef.current.has(parede.id)) return;
+    portasPendentesRef.current.add(parede.id);
     const aberta = !parede.aberta;
-    setParedes((prev) => prev.map((p) => (p.id === parede.id ? { ...p, aberta } : p)));
-    sb.from('mesa_paredes')
-      .update({ aberta })
-      .eq('id', parede.id)
-      .then(({ error }) => {
-        if (error) console.error('Falha ao abrir/fechar porta:', error.message);
-      });
-  }, []);
+    try {
+      const { data, error } = await sb.from('mesa_paredes').update({ aberta })
+        .eq('id', parede.id).eq('aberta', !!parede.aberta).select('id, aberta').maybeSingle();
+      if (error || !data) {
+        toast('Porta não confirmada: pode ter sido alterada por outra pessoa. Confira a conexão e o estado da mesa.', 'erro');
+        return;
+      }
+      setParedes(prev => prev.map(p => p.id === data.id ? { ...p, aberta: data.aberta } : p));
+    } catch { toast('Falha de conexão ao alterar a porta.', 'erro'); }
+    finally { portasPendentesRef.current.delete(parede.id); }
+  }, [ehMestre, toast]);
 
   const limparParedes = useCallback(() => {
     setParedes([]);
@@ -1975,7 +2023,7 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
 
     for (const id of atingidos) {
       const t = tokensComVida.find((x) => x.id === id);
-      if (!t) continue;
+      if (!t || !tokenVisivelNaNevoa(t, contextoNevoa)) continue;
       a.circle(t.x, t.y, t.radius * (t.scaleX || 1) + 5 / scale).stroke({
         width: 2 / scale,
         color: COR.erro,
@@ -1986,7 +2034,7 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
     // Paredes — só o mestre vê o traçado
     const w = p.paredesLayer;
     w.clear();
-    if (ehMestre && mostrarParedes) {
+    if (ehMestre && !verComoJogador && mostrarParedes) {
       for (const parede of paredes) {
         const info = TIPOS_PAREDE.find((t) => t.id === parede.tipo) || TIPOS_PAREDE[0];
         const aberta = parede.tipo === 'porta' && parede.aberta;
@@ -2065,6 +2113,7 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
     verComoJogador,
     comoJogador,
     celulasVisiveis,
+    contextoNevoa,
     medida,
     gridSize,
     limites,
@@ -2119,6 +2168,8 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
         p.tokenViews.set(token.id, view);
       }
       redrawTokenView(view, token, token.id === selectedId);
+      view.visible = tokenVisivelNaNevoa(token, contextoNevoa);
+      view.eventMode = view.visible ? 'static' : 'none';
       view.zIndex = token.camada ?? 0;
     }
 
@@ -2135,11 +2186,12 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
       userId: perfil?.id,
       token: selecionado,
     });
-    if (selecionado && podeTransformar) {
+    if (selecionado && podeTransformar && tokenVisivelNaNevoa(selecionado, contextoNevoa)) {
       positionSelectionHandles(p.selectionHandles, selecionado, 1 / p.world.scale.x);
     }
     else p.selectionHandles.visible = false;
-  }, [tokensComVida, selectedId, ready, ehMestre, perfil?.id]);
+    if (selecionado && !tokenVisivelNaNevoa(selecionado, contextoNevoa)) setSelectedId(null);
+  }, [tokensComVida, selectedId, ready, ehMestre, perfil?.id, contextoNevoa]);
 
   useEffect(() => {
     if (ferramenta !== 'parede') {
@@ -2197,6 +2249,13 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
                   >
                     Ver como jogador
                   </button>
+                  {verComoJogador && (
+                    <select className="mesa-btn" aria-label="Jogador da prévia de visão"
+                      value={donoDaVisao || ''} onChange={e => setObservadorId(e.target.value)}>
+                      {!observadores.length && <option value="">Nenhum token de jogador</option>}
+                      {observadores.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+                    </select>
+                  )}
                   <button className="mesa-btn" onClick={limparNevoa}>
                     Limpar
                   </button>
@@ -2578,7 +2637,7 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
               />
             )}
             {abaDock === 'sons' && (
-              <SoundboardPanel cenaId={cenaId} campanhaId={campanhaId} ehMestre={ehMestre} />
+              <SoundboardPanel campanhaId={campanhaId} ehMestre={ehMestre} audio={audioMesa} />
             )}
           </div>
         )}
