@@ -3,7 +3,7 @@ import { RASCUNHO_VAZIO, exportarRascunho, lerRascunho } from './alinhoModelo';
 import AlinhoDuvidas from './AlinhoDuvidas';
 import './alinho.css';
 
-const IMAGEM = `${import.meta.env.BASE_URL}mascote/alinho.png`;
+const IMAGEM = `${import.meta.env.BASE_URL}mascote/alinho-v2.png`;
 const ETAPAS = ['Sua ideia', 'Seu jeito', 'Sua história', 'Revisão'];
 
 export default function Alinho({ usuarioId }) {
@@ -20,6 +20,7 @@ export default function Alinho({ usuarioId }) {
   const dialog = useRef(null);
   const launcher = useRef(null);
   const titulo = useRef(null);
+  const corpo = useRef(null);
 
   useEffect(() => {
     try { localStorage.setItem(chave, JSON.stringify(rascunho)); setErroStorage(false); }
@@ -31,7 +32,7 @@ export default function Alinho({ usuarioId }) {
     else if (dialog.current?.open) { dialog.current.close(); launcher.current?.focus(); }
   }, [aberto]);
 
-  useEffect(() => { if (aberto) titulo.current?.focus(); }, [modo, etapa]);
+  useEffect(() => { if (aberto) { titulo.current?.focus(); corpo.current?.scrollTo({ top: 0 }); } }, [modo, etapa]);
   const campo = (nome, valor) => setRascunho((anterior) => ({ ...anterior, [nome]: valor }));
   const voltarInicio = () => { setModo('inicio'); setReiniciar(false); };
   const baixar = () => {
@@ -47,13 +48,13 @@ export default function Alinho({ usuarioId }) {
         <img src={IMAGEM} alt="" /><span><strong>Alinho</strong><small>Precisa de uma mão?</small></span><span aria-hidden="true">✦</span>
       </button>
       <dialog id="alinho-dialog" className="alinho-dialog" ref={dialog} aria-labelledby="alinho-titulo" onCancel={() => setAberto(false)} onClose={() => setAberto(false)}>
-        <header className="alinho-header"><div><span className="alinho-eyebrow">SEU COMPANHEIRO DE AVENTURA</span><h2 id="alinho-titulo" ref={titulo} tabIndex={-1}>Alinho <span>✦</span></h2></div><button className="alinho-icon" onClick={() => setAberto(false)} aria-label="Fechar Alinho">×</button></header>
-        <div className="alinho-body">
+        <header className="alinho-header"><img className="alinho-avatar" src={IMAGEM} alt="" /><div><span className="alinho-eyebrow">SEU COMPANHEIRO DE AVENTURA</span><h2 id="alinho-titulo" ref={titulo} tabIndex={-1}>Alinho <span>✦</span></h2></div><button className="alinho-icon" onClick={() => setAberto(false)} aria-label="Fechar Alinho">×</button></header>
+        <div className="alinho-body" ref={corpo}>
           {modo === 'inicio' ? <>
             <div className="alinho-hero"><img src={IMAGEM} alt="Alinho, um pequeno dragão de lenço vermelho segurando um dado" /><span className="alinho-tag">Toda aventura começa com uma ideia.</span></div>
             <h3>Oi! Vamos dar o primeiro passo?</h3><p>Eu te ajudo a organizar seu personagem e a encontrar seu caminho no Allies. Um passo de cada vez.</p>
             <button className="alinho-card" onClick={() => setModo('guia')}><span aria-hidden="true">✎</span><span><strong>{rascunho.nome ? 'Continuar meu rascunho' : 'Criar minha ficha'}</strong><small>Da primeira ideia ao rascunho do personagem</small></span><span aria-hidden="true">→</span></button>
-            <button className="alinho-card" onClick={() => setModo('duvidas')}><span aria-hidden="true">?</span><span><strong>Tenho uma dúvida</strong><small>Primeiros passos, fichas e mesa virtual</small></span><span aria-hidden="true">→</span></button>
+            <button className="alinho-card" onClick={() => setModo('duvidas')}><span aria-hidden="true">?</span><span><strong>Tenho uma dúvida</strong><small>Magias, regras de D&D e primeiros passos</small></span><span aria-hidden="true">→</span></button>
           </> : <>
             <button className="alinho-back" onClick={voltarInicio}>← Início</button>
             {modo === 'guia' ? <>

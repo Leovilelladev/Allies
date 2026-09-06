@@ -4,10 +4,10 @@
 .alinho-launcher strong { font-size: 16px; color: #e5c587; }
 .alinho-launcher small { font-size: 11px; margin-top: 3px; }
 .alinho-launcher > span:last-child { color: #0ac8b9; }
-.alinho-dialog { padding: 0; width: min(440px, calc(100vw - 24px)); max-height: calc(100dvh - 48px); margin: auto 24px auto auto; border: 1px solid #785a28; border-radius: 20px; background: #091428; color: #f0e6d2; font: 14px/1.55 var(--font-sans, sans-serif); box-shadow: 0 24px 80px #0008; overflow: auto; }
+.alinho-dialog { padding: 0; width: min(480px, calc(100vw - 24px)); max-height: calc(100dvh - 48px); margin: auto 24px auto auto; border: 1px solid #785a28; border-radius: 20px; background: #091428; color: #f0e6d2; font: 14px/1.55 var(--font-sans, sans-serif); box-shadow: 0 24px 80px #0008; overflow: auto; }
 .alinho-dialog[open] { display: flex; flex-direction: column; }
 .alinho-dialog::backdrop { background: #010a1399; }
-.alinho-header { display: flex; justify-content: space-between; align-items: center; padding: 22px 24px 16px; border-bottom: 1px solid #c8aa6e33; }
+.alinho-header { flex-shrink: 0; gap: 12px; display: flex; justify-content: space-between; align-items: center; padding: 22px 24px 16px; border-bottom: 1px solid #c8aa6e33; }
 .alinho-eyebrow { font-size: 9px; letter-spacing: .13em; font-weight: 700; color: #c8aa6e; }
 .alinho-header h2 { font: 28px var(--font-serif, Georgia); margin: 4px 0 0; }
 .alinho-header h2 span { color: #0ac8b9; font-size: 18px; }
@@ -15,9 +15,9 @@
 .alinho-body { padding: 20px 24px 24px; overflow-y: auto; min-height: 0; }
 .alinho-body h3 { font: 23px/1.25 var(--font-serif, Georgia); margin: 16px 0 10px; }
 .alinho-body p { color: #b8b4a9; margin: 0 0 18px; }
-.alinho-hero { position: relative; height: 220px; background: #f8f4f4; border-radius: 12px; overflow: hidden; text-align: center; }
-.alinho-hero img { width: 100%; height: 200px; object-fit: contain; }
-.alinho-tag { position: absolute; bottom: 0; left: 0; right: 0; background: #f8f4f4; color: #785a28; padding: 6px; font-size: 11px; }
+.alinho-hero { position: relative; height: 240px; background: radial-gradient(ellipse at 50% 65%, #0ac8b921, transparent 65%); border-radius: 12px; overflow: hidden; text-align: center; }
+.alinho-hero img { width: 100%; height: 216px; object-fit: contain; filter: drop-shadow(0 10px 16px #0006); }
+.alinho-tag { position: absolute; bottom: 0; left: 0; right: 0; background: transparent; color: #c8aa6e; padding: 6px; font-size: 11px; }
 .alinho-card { width: 100%; display: flex; gap: 14px; align-items: center; padding: 16px; margin-top: 10px; text-align: left; color: #f0e6d2; background: #0d2040; border: 1px solid #c8aa6e55; border-radius: 10px; cursor: pointer; font: inherit; }
 .alinho-card > span:first-child { color: #0ac8b9; font-size: 22px; }
 .alinho-card > span:nth-child(2) { flex: 1; }
@@ -81,3 +81,51 @@
 .alinho-licenca p { margin-top: 10px; }
 .alinho-dialog :focus-visible, .alinho-launcher:focus-visible { outline: 2px solid #0ac8b9; outline-offset: 3px; }
 @media (max-width: 600px) { .alinho-dialog { margin: auto; max-height: calc(100dvh - 24px); } .alinho-launcher { bottom: 16px; right: 16px; } .alinho-launcher small { display: none; } .alinho-body { padding: 16px 20px; } }
+
+/* Alinho: companion surfaces and conversation composer. */
+.alinho-dialog, .alinho-dialog * { box-sizing: border-box; }
+.alinho-dialog { background: linear-gradient(155deg, #122138, #091428 55%); border-color: #c8aa6e55; overflow: hidden; }
+.alinho-dialog::backdrop { background: #010a13b8; backdrop-filter: blur(4px); }
+.alinho-header { background: #091428aa; padding: 18px 24px; }
+.alinho-header > div { flex: 1; min-width: 0; }
+.alinho-header .alinho-eyebrow { font-size: 8px; letter-spacing: .1em; }
+.alinho-avatar { width: 52px; height: 58px; object-fit: contain; filter: drop-shadow(0 3px 6px #0ac8b933); }
+.alinho-header h2 { font-size: 26px; }
+.alinho-icon { flex-shrink: 0; width: 40px; height: 40px; }
+.alinho-body { scrollbar-width: thin; scrollbar-color: #c8aa6e55 transparent; }
+.alinho-launcher { border-radius: 20px; background: linear-gradient(135deg, #17263b, #091428); border-color: #c8aa6e77; }
+.alinho-launcher img { width: 58px; height: 62px; object-fit: contain; margin-top: -14px; border-radius: 0; filter: drop-shadow(0 4px 5px #0006); }
+.alinho-card { padding: 18px 16px; background: #ffffff04; border-color: #c8aa6e33; border-radius: 14px; }
+.alinho-card > span:first-child { display: grid; place-items: center; width: 38px; height: 38px; flex-shrink: 0; border-radius: 12px; background: #0ac8b911; border: 1px solid #0ac8b922; }
+.alinho-card small { font-size: 12px; line-height: 1.5; }
+.alinho-card > span:last-child { color: #c8aa6e; }
+.alinho-primary { background: linear-gradient(110deg, #e4ca91, #c8aa6e); border-color: #e4ca91; box-shadow: 0 4px 12px #0002; }
+.alinho-icon:hover, .alinho-secondary:hover { background: #c8aa6e15; }
+.alinho-primary:not(:disabled):hover { filter: brightness(1.08); }
+.alinho-launcher:hover { border-color: #e4ca91; transform: translateY(-2px); }
+.alinho-ajuda { margin: 18px 0; border: 1px solid #c8aa6e22; border-radius: 12px; background: #ffffff03; }
+.alinho-ajuda summary { cursor: pointer; padding: 13px 14px; color: #dfd5c2; font-size: 12px; }
+.alinho-ajuda summary span { float: right; font-size: 10px; color: #a5adba; }
+.alinho-ajuda .alinho-topics { padding: 0 10px 10px; }
+.alinho-topics button { background: #091428; border-color: #c8aa6e22; font-size: 12px; }
+.alinho-composer { padding: 16px; border: 1px solid #c8aa6e66; border-radius: 16px; background: #060f1e; }
+.alinho-composer:focus-within { border-color: #0ac8b9; box-shadow: 0 0 0 3px #0ac8b90b; }
+.alinho-composer label { margin: 0; color: #e5c587; font-size: 12px; }
+.alinho-composer textarea { min-height: 112px; padding: 12px 0; background: transparent; border: 0; font-size: 14px; line-height: 1.65; box-shadow: none; }
+.alinho-composer textarea:focus-visible { outline-offset: 2px; }
+.alinho-composer-meta { display: flex; justify-content: space-between; gap: 8px; color: #929faf; font-size: 10px; padding: 8px 0 14px; }
+.alinho-composer .alinho-primary { width: 100%; }
+.alinho-thinking { display: flex; gap: 10px; align-items: center; padding: 18px; color: #b8c8cf; background: #0ac8b909; border-radius: 12px; font-size: 12px; }
+.alinho-thinking span { color: #0ac8b9; font-size: 22px; animation: alinho-glow 1.6s ease-in-out infinite alternate; }
+.alinho-answer { background: linear-gradient(145deg, #102738, #0b1d2d); border-left-width: 1px; box-shadow: 0 6px 20px #0002; padding: 20px; }
+.alinho-fontes { background: #ffffff04; border: 1px solid #c8aa6e22; padding: 14px; border-radius: 12px; }
+.alinho-fontes > strong { color: #c8aa6e; font-size: 11px; }
+.alinho-fontes a { padding: 6px 0; text-underline-offset: 3px; }
+.alinho-footer { flex-shrink: 0; background: #091428; font-size: 11px; }
+.alinho-progress span { height: 4px; border-radius: 4px; }
+@keyframes alinho-glow { from { opacity: .4; } to { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) { .alinho-launcher, .alinho-card, .alinho-primary { transition: background .18s, border-color .18s, transform .18s, filter .18s; } }
+@media (prefers-reduced-motion: reduce) { .alinho-thinking span { animation: none; } }
+@media (max-width: 600px) { .alinho-header { padding: 16px 18px; gap: 10px; } .alinho-header .alinho-eyebrow { font-size: 7px; } .alinho-avatar { width: 44px; height: 50px; } .alinho-hero { height: 212px; } .alinho-hero img { height: 188px; } .alinho-answer { padding: 16px; } }
+
+@media (max-width: 380px) { .alinho-hero { height: 164px; } .alinho-hero img { height: 140px; } .alinho-body > h3 { font-size: 21px; } .alinho-body { padding: 14px 18px; } .alinho-card { padding: 14px 12px; } }

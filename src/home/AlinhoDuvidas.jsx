@@ -43,14 +43,14 @@ export default function AlinhoDuvidas() {
 
   return <>
     <h3>O que você quer descobrir?</h3>
-    <p>Pergunte ao Alinho sobre seu personagem ou D&D 2024. Os tópicos rápidos continuam disponíveis sem usar a IA.</p>
-    <div className="alinho-topics">{DUVIDAS.map((item) => <button key={item.titulo} onClick={() => topico(item)}>{item.titulo}<span aria-hidden="true">↗</span></button>)}</div>
-    <form onSubmit={enviar}>
-      <label>Sua dúvida<textarea value={pergunta} maxLength={1200} onChange={(e) => setPergunta(e.target.value)} placeholder="Como funciona a concentração em D&D 2024?" disabled={carregando} /></label>
-      <p className="alinho-storage">Ao perguntar, seu texto é enviado à Groq. Cada pergunta é independente; inclua o contexto necessário.</p>
+    <p>De uma ideia de personagem àquela regra que sempre gera dúvida. Vamos descobrir juntos.</p>
+    <details className="alinho-ajuda"><summary>Ajuda rápida do Allies <span>5 tópicos</span></summary><div className="alinho-topics">{DUVIDAS.map((item) => <button key={item.titulo} onClick={() => topico(item)}>{item.titulo}<span aria-hidden="true">↗</span></button>)}</div></details>
+    <form className="alinho-composer" onSubmit={enviar}>
+      <label>Sua pergunta<textarea value={pergunta} maxLength={1200} onChange={(e) => setPergunta(e.target.value)} placeholder="Como funciona a concentração em D&D 2024?" disabled={carregando} /></label>
+      <div className="alinho-composer-meta"><span>D&D 2024 · SRD 5.2.1</span><span>{pergunta.length}/1.200</span></div>
       <button className="alinho-primary" disabled={!pergunta.trim() || carregando}>{carregando ? 'Alinho está pensando…' : 'Perguntar ao Alinho →'}</button>
-    </form>
-    {carregando && <p role="status" className="alinho-storage">Preparando sua resposta…</p>}
+    </form><p className="alinho-storage">Cada pergunta é independente e enviada à Groq. Inclua o contexto necessário.</p>
+    {carregando && <div role="status" className="alinho-thinking"><span aria-hidden="true">✦</span> Alinho está consultando a biblioteca…</div>}
     {erro && <div role="alert" className="alinho-note">{erro}</div>}
     {resposta && <div className="alinho-answer" role="status"><div className="alinho-answer-heading"><strong>Alinho</strong><span>{origem}</span></div><div className="alinho-markdown"><Markdown remarkPlugins={[remarkGfm]} skipHtml components={{ a: ({ children, href }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>, img: () => null, table: ({ children }) => <div className="alinho-table" tabIndex={0} role="region" aria-label="Tabela da resposta"><table>{children}</table></div> }}>{resposta}</Markdown></div>{incompleta && <p>A resposta atingiu o limite de tamanho. Tente uma pergunta mais específica.</p>}</div>}
     {fontes.length > 0 && <div className="alinho-fontes"><strong>Confira na fonte</strong>{fontes.map((f) => <a key={f.numero} href={f.url} target="_blank" rel="noreferrer">[{f.numero}] {f.titulo} · página {f.pagina} ↗</a>)}</div>}
