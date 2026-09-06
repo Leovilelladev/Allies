@@ -7,7 +7,9 @@ const env = { GROQ_API_KEY: 'segredo-apenas-teste', ALINHO_ENABLED: 'true' };
 let pedidos = [];
 const fetchOk = async (url, opcoes) => {
   pedidos.push({ url, opcoes });
-  return Response.json({ choices: [{ message: { content: 'Vamos conferir a descrição de 2024.' }, finish_reason: 'stop' }] });
+  const request = JSON.parse(opcoes.body);
+  const content = request.response_format ? JSON.stringify({ termos: ['Concentration'], nomes: [] }) : 'Concentração pode terminar ao sofrer dano e falhar no teste de Constituição [1].';
+  return Response.json({ choices: [{ message: { content }, finish_reason: 'stop' }] });
 };
 const servico = criarServicoAlinho({ env, fetchImpl: fetchOk });
 assert.equal((await servico({ pergunta: '   ' })).status, 400);
@@ -23,9 +25,10 @@ assert.equal(enviado.messages.length, 2);
 assert.equal(enviado.messages[1].content, 'O que é concentração?');
 assert.ok(!pedidos[0].opcoes.body.includes('usuarioId'));
 assert.ok(!JSON.stringify(sucesso).includes(env.GROQ_API_KEY));
-assert.match(enviado.messages[0].content, /NÃO tem livros/);
+assert.match(JSON.parse(pedidos[1].opcoes.body).messages[0].content, /Concentration/);
+assert.equal(sucesso.body.fontes[0].pagina, 179);
 assert.equal((await criarServicoAlinho({ env: {}, fetchImpl: fetchOk })({ pergunta: 'Oi' })).status, 503);
-assert.equal(pedidos.length, 1);
+assert.equal(pedidos.length, 2);
 
 let tempo = 60000;
 let contagem = 0;

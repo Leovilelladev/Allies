@@ -19,7 +19,7 @@ Copie `.env.example` para `.env.local`, configure a chave e a ativação e execu
 
 - Modelo fixo `openai/gpt-oss-20b`, hospedado na Groq, disponível na tabela Free consultada em 05/09/2026. Nenhuma API da OpenAI é chamada.
 - Sem troca automática de modelo/provedor, sem tentativas automáticas e sem ferramentas extras. A cobrança é definida pelo plano da organização Groq: o código não consegue confirmar ou impor o plano Free. `ALINHO_ENABLED` é somente uma chave de ativação.
-- Até 1.200 caracteres por pergunta e 1.200 tokens de conclusão (incluindo raciocínio); prazo de 20 segundos no servidor. Somente a pergunta atual e instruções fixas do Alinho são enviadas à Groq. Sem histórico, rascunho, chave do Supabase ou dados de campanhas.
+- Até 1.200 caracteres por pergunta; até 500 tokens para identificar os termos de busca em inglês e 1.200 para explicar os trechos (incluindo raciocínio), com prazo total de 20 segundos. Duas chamadas à Groq por pergunta respondida: termos de busca e resposta. Busca vazia usa uma chamada. São enviados a pergunta, instruções fixas e até quatro trechos de 2.200 caracteres do SRD. Sem histórico, rascunho, chave do Supabase ou dados de campanhas.
 - Uma chamada simultânea e quatro por minuto **por instância**; um erro 429 pausa essa instância pelo período informado pela Groq (entre 60 segundos e 24 horas). As cotas da organização Groq continuam sendo o limite efetivo compartilhado.
 - O controle em memória reinicia com a função e não é global entre instâncias da Vercel. Não há autenticação própria nesta rota; filtro de origem não substitui autenticação. Para divulgação ampla, acrescentar limitação distribuída e identidade verificada, em coordenação com quem cuida das permissões. Esta primeira versão destina-se a um piloto pequeno.
 - Respostas são texto simples, nunca HTML executável. Erros do provedor e credenciais não são repassados nem registrados pelo aplicativo.
@@ -27,7 +27,11 @@ Copie `.env.example` para `.env.local`, configure a chave e a ativação e execu
 
 ## Biblioteca de regras
 
-Esta entrega conecta a IA, mas **ainda não implementa RAG nem importa livros**. A interface sinaliza isso e o prompt proíbe afirmar que consultou livros ou inventar páginas. Referência desejada: D&D 5e, revisão 2024. Respostas são orientações gerais, não regras verificadas. Próxima etapa: adicionar fontes autorizadas e recuperação de trechos com referências verificáveis.
+A biblioteca usa o PDF oficial em inglês do SRD 5.2.1: https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf. O arquivo `server/biblioteca/srd-5.2.1.json` contém 976 trechos, paginação e SHA256 da fonte. A busca lexical BM25 com bônus de títulos roda no servidor; os termos portugueses são convertidos para inglês pela Groq. Não requer embeddings, banco vetorial ou mudanças no Supabase.
+
+O modelo recebe somente os trechos recuperados e deve citar seus números. O servidor rejeita respostas com referências fora da lista ou sem nenhuma referência quando há trechos. Isso valida a existência da referência, não garante que cada afirmação é fiel: ainda é necessário conferir respostas e extração de tabelas. Busca sem resultados pede esclarecimento, sem gerar regras de memória. O SRD não equivale aos livros comerciais completos; nomes traduzidos podem exigir esclarecimento ou o nome em inglês.
+
+A interface mostra links às páginas **do SRD**, não páginas dos livros comerciais, e a atribuição CC-BY-4.0 em `server/biblioteca/ATRIBUICAO.md`. O PDF foi extraído com pypdf e teve espaços/hifenização normalizados. Para reproduzir: `python tools/importar-srd.py caminho/SRD_CC_v5.2.1.pdf server/biblioteca/srd-5.2.1.json` (requer pypdf). PDF e ferramentas temporárias ficam em `tmp/`, fora do Git. Só o índice de texto é publicado junto à função, não no bundle do navegador.
 
 ## Verificação
 

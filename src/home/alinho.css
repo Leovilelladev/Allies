@@ -52,5 +52,10 @@
 .alinho-topics { display: grid; gap: 8px; }
 .alinho-topics button { display: flex; justify-content: space-between; gap: 12px; text-align: left; background: #0d2040; border: 1px solid #c8aa6e44; border-radius: 8px; color: #f0e6d2; padding: 12px; font: inherit; cursor: pointer; }
 .alinho-footer { font-size: 10px; text-align: center; color: #b8b4a9; padding: 12px 20px; border-top: 1px solid #c8aa6e22; }
+.alinho-fontes { display: grid; gap: 8px; padding: 12px; background: #0d2040; border-radius: 8px; font-size: 12px; }
+.alinho-fontes a, .alinho-licenca a { color: #0ac8b9; text-decoration: underline; overflow-wrap: anywhere; }
+.alinho-licenca { font-size: 11px; color: #b8b4a9; margin-top: 16px; }
+.alinho-licenca summary { cursor: pointer; color: #c8aa6e; }
+.alinho-licenca p { margin-top: 10px; }
 .alinho-dialog :focus-visible, .alinho-launcher:focus-visible { outline: 2px solid #0ac8b9; outline-offset: 3px; }
 @media (max-width: 600px) { .alinho-dialog { margin: auto; max-height: calc(100dvh - 24px); } .alinho-launcher { bottom: 16px; right: 16px; } .alinho-launcher small { display: none; } .alinho-body { padding: 16px 20px; } }
