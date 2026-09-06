@@ -1,3 +1,5 @@
+import MesaIcone from './MesaIcone';
+import '../styles/mesa-stitch.css';
 import { EFEITOS, criarFilaEfeitos } from './efeitos';
 import { desenharEfeitos } from './pixiEfeitos';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -1949,7 +1951,7 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
         if (limites && (y < limites.y0 || y > limites.y1)) continue;
         g.moveTo(cortaX(x0), y).lineTo(cortaX(x1), y);
       }
-      g.stroke({ width: 1 / scale, color: COR.ouro, alpha: 0.14 });
+      g.stroke({ width: 1 / scale, color: 0x94a3b8, alpha: 0.06 });
 
       for (let x = x0; x <= x1; x += cel) {
         if (Math.round(x / cel) % 5 !== 0) continue;
@@ -1961,7 +1963,7 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
         if (limites && (y < limites.y0 || y > limites.y1)) continue;
         g.moveTo(cortaX(x0), y).lineTo(cortaX(x1), y);
       }
-      g.stroke({ width: 1.4 / scale, color: COR.ouro, alpha: 0.3 });
+      g.stroke({ width: 1.4 / scale, color: 0x94a3b8, alpha: 0.12 });
     }
 
     // Fora da mesa: faixa "fantasma" ao redor (onde ainda dá pra arrastar a
@@ -2142,7 +2144,7 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
           2
         )
         .fill({ color: COR.vazio, alpha: 0.88 })
-        .stroke({ width: 1 * inv, color: COR.ouro, alpha: 0.3 });
+        .stroke({ width: 1 * inv, color: 0x94a3b8, alpha: 0.12 });
     }
 
     p.desenharSobreposicoes?.();
@@ -2272,9 +2274,9 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
         <span className="mesa-brand">
           Allies <small>Mesa</small>
         </span>
-        <div className="mesa-contexto">{seletor}</div>
+        <details className="mesa-menu mesa-menu-sessoes" name="mesa-menus" onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); e.currentTarget.open = false; e.currentTarget.querySelector('summary')?.focus(); } }}><summary>Sessão &amp; Mapas <span aria-hidden="true">⌄</span></summary><div className="mesa-menu-conteudo mesa-contexto">{seletor}</div></details>
 
-        <div className="mesa-topbar-direita">
+        <details className="mesa-menu mesa-menu-cena" name="mesa-menus" onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); e.currentTarget.open = false; e.currentTarget.querySelector('summary')?.focus(); } }}><summary>Cena <span className="mesa-menu-zoom">{Math.round(scale * 100)}%</span><span aria-hidden="true">⌄</span></summary><div className="mesa-menu-conteudo mesa-topbar-direita">
           {ehMestre && (
             <>
               <button
@@ -2341,7 +2343,7 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
             ?
           </button>
           {sincronizando && <span className="mesa-sync">Sincronizando…</span>}
-        </div>
+        </div></details>
       </header>
 
       {/* Trilho de ferramentas */}
@@ -2352,8 +2354,9 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
             className={`ferramenta ${ferramenta === f.id ? 'is-ativa' : ''}`}
             onClick={() => setFerramenta(f.id)}
             title={`${f.rotulo} (${f.atalho})`}
+            aria-label={f.rotulo}
           >
-            <span className="ferramenta-icone">{f.icone}</span>
+            <span className="ferramenta-icone"><MesaIcone nome={f.id} /></span>
             <span className="ferramenta-rotulo">{f.rotulo}</span>
           </button>
         ))}
@@ -2623,7 +2626,7 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
                 }
               }}
             >
-              {a.rotulo}
+              <MesaIcone nome={a.id} /><span>{a.rotulo}</span>
             </button>
           ))}
           <button

@@ -856,17 +856,7 @@ export default function FichaPanel({
                     );
                   })}
                 </div>
-                <button className="mesa-btn mesa-btn--largo" onClick={rolarIniciativa}>
-                  Rolar iniciativa e entrar na ordem
-                </button>
-                {onCriarTokenDaFicha && (
-                  <button
-                    className="mesa-btn mesa-btn--largo"
-                    onClick={() => onCriarTokenDaFicha(ficha)}
-                  >
-                    Colocar token no mapa
-                  </button>
-                )}
+
               </>
             )}
 
@@ -939,6 +929,18 @@ export default function FichaPanel({
                 onMoedas={(moedas) => salvarDados({ moedas })}
               />
             )}
+          </div>
+          <div className="ficha-atalhos">                <button className="mesa-btn mesa-btn--primario mesa-btn--largo" onClick={rolarIniciativa}>
+                  Rolar iniciativa e entrar na ordem
+                </button>
+                {onCriarTokenDaFicha && (
+                  <button
+                    className="mesa-btn mesa-btn--largo"
+                    onClick={() => onCriarTokenDaFicha(ficha)}
+                  >
+                    Colocar token no mapa
+                  </button>
+                )}
           </div>
         </>
       )}

@@ -1,0 +1,121 @@
+/* Layout adaptado da referência Stitch; os componentes e ações são os do VTT. */
+.mesa-root.mesa-root {
+  --m-dim: #060a14; --m-baixo: #0a101f; --m-medio: #0f172a;
+  --m-alto: #15213b; --m-topo: #24375e;
+  --m-ouro: #d9a74a; --m-ouro-forte: #b8862d; --m-ouro-claro: #f6d58d;
+  --m-turquesa: #2dd4bf; --m-turquesa-2: #14b8a6;
+  --m-texto: #e7edf6; --m-texto-2: #b3c0d3; --m-texto-3: #8a9ab2;
+  --m-fio: #243047; --m-fio-2: #35445f;
+  --m-sans: 'Plus Jakarta Sans', system-ui, sans-serif; --m-serif: 'Cinzel', Georgia, serif;
+  --dock: 360px; --trilho: 0px; --topo: 56px;
+}
+.mesa-root .mesa-stage { background: radial-gradient(ellipse at center, #10182855, transparent 80%), #060a14; }
+.mesa-root .mesa-topbar { background: #0a101ff5; border-bottom: 1px solid #1c293e; gap: 14px; padding: 0 14px; position: relative; z-index: 25; }
+.mesa-root .mesa-brand { display: flex; align-items: center; gap: 8px; font-size: 15px; text-shadow: none; text-transform: uppercase; }
+.mesa-root .mesa-brand::before { content: 'A'; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(35deg, #b8862d, #e5b869); color: #060a14; box-shadow: 0 0 18px #d9a74a22; }
+.mesa-root .mesa-brand small { margin-left: 0; font-size: 8px; letter-spacing: .08em; }
+.mesa-menu { position: relative; }
+.mesa-menu > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; padding: 7px 12px; color: var(--m-ouro-claro); border: 1px solid var(--m-fio); border-radius: 20px; background: #0f172a; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.mesa-menu > summary::-webkit-details-marker { display: none; }
+.mesa-menu[open] > summary { border-color: #d9a74a77; }
+.mesa-menu-cena { margin-left: auto; }
+.mesa-menu-zoom { background: #060a14; border-radius: 5px; padding: 2px 5px; font-size: 10px; }
+.mesa-root .mesa-menu-conteudo { position: absolute; top: calc(100% + 10px); left: 0; width: 300px; max-width: calc(100vw - 28px); max-height: calc(100dvh - 100px); overflow: auto; padding: 14px; background: #0a101ffb; border: 1px solid #35445f; border-radius: 16px; box-shadow: 0 16px 40px #0008; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.mesa-root .mesa-menu-cena .mesa-menu-conteudo { left: auto; right: 0; margin: 0; }
+.mesa-root .mesa-menu-conteudo select { max-width: 100%; }
+.mesa-root .mesa-trilho { grid-area: auto; position: absolute; top: 72px; left: 14px; z-index: 15; width: 50px; height: auto; max-height: calc(100dvh - 140px); overflow-y: auto; padding: 4px; gap: 4px; background: #0a101fe8; border: 1px solid #243047; border-radius: 16px; box-shadow: 0 12px 28px #0005; }
+.mesa-root .ferramenta { width: 40px; min-height: 40px; padding: 9px; border: 0; border-radius: 11px; color: #8a9ab2; }
+.mesa-root .ferramenta.is-ativa { background: #d9a74a; color: #060a14; box-shadow: 0 0 16px #d9a74a22; }
+.mesa-root .ferramenta:hover:not(.is-ativa) { background: #15213b; color: #f6d58d; }
+.mesa-root .ferramenta-rotulo { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
+.mesa-svg-icone { width: 17px; height: 17px; flex-shrink: 0; display: block; }
+.mesa-root .ferramenta-config { left: 78px; border-radius: 14px; background: #0a101ff5; max-width: calc(100vw - var(--dock) - 100px); }
+.mesa-root .mesa-dock { background: #0a101f; border-left: 1px solid #1c293e; }
+.mesa-root .dock-abas { background: #0a101f; padding: 6px; gap: 2px; }
+.mesa-root .dock-aba { display: flex; align-items: center; justify-content: center; gap: 4px; font-family: var(--m-sans); font-size: 10px; padding: 8px 3px; border: 0; border-radius: 8px; letter-spacing: 0; }
+.mesa-root .dock-aba .mesa-svg-icone { width: 13px; height: 13px; }
+.mesa-root .dock-aba.is-ativa { background: #d9a74a22; color: #f6d58d; text-shadow: none; }
+.mesa-root .dock-colapsar { width: 23px; border: 0; border-radius: 8px; }
+.mesa-root .mesa-dock.is-fechado .dock-aba { writing-mode: horizontal-tb; flex-direction: column; gap: 5px; padding: 10px 2px; font-size: 8px; }
+.mesa-root .mesa-dock.is-fechado .dock-abas { padding: 4px; }
+.mesa-root .ficha { padding: 12px; gap: 10px; }
+.mesa-root .ficha-topo { padding: 12px; border: 1px solid #1b2942; border-radius: 16px; background: #0f172a; gap: 10px; }
+.mesa-root .ficha-avatar { width: 44px; height: 48px; border-radius: 12px; border: 1px solid #d9a74a77; background-color: #d9a74a; color: #060a14; }
+.mesa-root .ficha-elenco-rotulo { color: #d9a74a; font-size: 8px; letter-spacing: .06em; }
+.mesa-root .ficha-seletor { font-family: var(--m-sans); font-size: 12px; padding: 5px 7px; background: #0a101f; border: 1px solid #243047; border-radius: 7px; }
+.mesa-root .ficha-subtitulo { font-size: 10px; color: #a7b6cb; }
+.mesa-root .ficha-vitais { gap: 6px; border: none; }
+.mesa-root .vital { background: #0f172a; border: 1px solid #1b2942; border-radius: 12px; padding: 10px 3px; }
+.mesa-root .vital-rotulo { font-size: 9px; color: #9baac0; }
+.mesa-root .vital-valor { font-size: 18px; color: #f6d58d; }
+.mesa-root .vital-valor--pequeno { font-size: 11px; color: #d3ddeb; }
+.mesa-root .ficha-pv { border: 1px solid #1b2942; border-radius: 14px; background: #0f172a; padding: 12px; }
+.mesa-root .ficha-pv-numeros { font-size: 18px; color: #2dd4bf; }
+.mesa-root .ficha-pv-barra { height: 5px; border: 0; border-radius: 5px; background: #060a14; }
+.mesa-root .ficha-pv-preenchimento { background: #2dd4bf; }
+.mesa-root .ficha-pv-preenchimento.is-ferido { background: #d9a74a; }
+.mesa-root .ficha-pv-preenchimento.is-critico { background: #ff5858; }
+.mesa-root .mesa-btn { border-radius: 8px; font-family: var(--m-sans); font-size: 11px; }
+.mesa-root .mesa-btn--primario { background: linear-gradient(100deg, #e5b869, #d9a74a); color: #060a14; border-color: #d9a74a; }
+.mesa-root .ficha-descanso { gap: 5px; }
+.mesa-root .ficha-descanso .mesa-btn { padding: 6px 3px; font-size: 9px; background: #0a101f; }
+.mesa-root .ficha-pv-controles input { border-radius: 8px; background: #060a14; }
+.mesa-root .ficha-modo { padding: 3px; border: 1px solid #243047; background: #060a14; border-radius: 9px; }
+.mesa-root .ficha-modo-btn { border: 0; border-radius: 6px; padding: 7px 4px; font-size: 10px; }
+.mesa-root .ficha-modo-btn.is-ativo { background: #d9a74a; color: #060a14; }
+.mesa-root .ficha-abas { padding: 0; gap: 3px; background: transparent; overflow-x: auto; }
+.mesa-root .ficha-aba { font-family: var(--m-sans); font-size: 10px; padding: 9px 3px; }
+.mesa-root .ficha-conteudo { padding: 0; }
+.mesa-root .atributo { border: 1px solid #1b2942; border-radius: 12px; background: #0f172a; padding: 10px 7px 6px; gap: 5px; }
+.mesa-root .atributo-mod { color: #f6d58d; font-size: 21px; }
+.mesa-root .atributo-valor { width: 100%; border-radius: 5px; padding: 3px; background: #060a14; color: #9baac0; }
+.mesa-root .ficha-saves { padding: 8px; border: 1px solid #1b2942; border-radius: 12px; background: #0f172a; }
+.mesa-root .save { background: #0a101f; border-radius: 6px; padding: 7px 5px; }
+.mesa-root .pericia { padding: 11px 8px; border-bottom-color: #1c293e; border-radius: 6px; }
+.mesa-root :is(.acao, .magia, .item, .combatente, .soundboard-play, .chat-rolagem) { border-radius: 12px; border-color: #243047; background-color: #0f172a; }
+.mesa-root .combatente.is-ativo { border-color: #d9a74a; background: #d9a74a15; }
+.mesa-root .chat-msg { border: 1px solid #1b2942; border-radius: 12px; padding: 12px; background: #0f172a; }
+.mesa-root .chat-form { background: #0a101f; padding-top: 10px; }
+.mesa-root .token-painel-topo { margin: 12px; padding: 12px; border: 1px solid #1b2942; border-radius: 14px; background: #0f172a; }
+.mesa-root .token-painel-corpo > .ficha-pv { margin: 0 12px; }
+.mesa-root .token-secao { margin: 10px 12px 0; padding: 12px; border: 1px solid #1b2942; border-radius: 12px; background: #0f172a; }
+.mesa-root .iniciativa-topo { margin: 12px; padding: 12px; border-radius: 14px; background: #0f172a; border: 1px solid #243047; }
+.mesa-root .soundboard-play { padding: 14px 12px; background: #0f172a; }
+.mesa-root .token-bar { left: 78px; border-radius: 12px; background: #0a101ff2; }
+.mesa-root :is(button, select, input, textarea, summary):focus-visible { outline: 2px solid #e5b869; outline-offset: 2px; }
+@media (max-width: 800px) {
+  .mesa-root.mesa-root { --dock: min(340px, calc(100vw - 78px)); }
+  .mesa-root .mesa-brand small { display: none; }
+  .mesa-root .mesa-topbar { gap: 6px; padding: 0 8px; }
+  .mesa-root .mesa-brand { font-size: 12px; gap: 5px; }
+  .mesa-root .mesa-brand::before { width: 24px; height: 24px; }
+  .mesa-menu > summary { padding: 7px 8px; font-size: 10px; }
+  .mesa-root .ferramenta-config { max-width: calc(100vw - 92px); z-index: 20; }
+  .mesa-root .mesa-menu-sessoes .mesa-menu-conteudo { left: auto; right: -60px; }
+}
+@media (max-width: 480px) {
+  .mesa-root .mesa-brand { font-size: 0; gap: 0; }
+  .mesa-root .mesa-brand::before { font-size: 14px; }
+  .mesa-root .mesa-topbar > .mesa-btn { padding: 6px; font-size: 10px; }
+  .mesa-root .dock-aba { font-size: 9px; gap: 2px; }
+}
+
+.mesa-root *, .mesa-root *::before, .mesa-root *::after { box-sizing: border-box; }
+.mesa-root .ficha-pv-controles .mesa-btn--dano { background: #ef476f18; border-color: #ef476f44; color: #f48aa3; }
+.mesa-root .ficha-pv-controles .mesa-btn--cura { background: #2dd4bf18; border-color: #2dd4bf44; color: #5be7d4; }
+.mesa-root .ficha-abas { display: flex; }
+.mesa-root .ficha-aba { flex: 1; }
+.mesa-root .dock-conteudo::-webkit-scrollbar { width: 5px; }
+.mesa-root .dock-conteudo::-webkit-scrollbar-thumb { background: #d9a74a44; }
+
+.mesa-root .ficha { height: 100%; gap: 8px; overflow-y: auto; }
+.mesa-root .ficha > * { flex-shrink: 0; }
+.mesa-root .ficha-topo { padding: 9px 10px; }
+.mesa-root .ficha-conteudo { flex: 1 1 120px; min-height: 100px; overflow-y: auto; scrollbar-width: thin; }
+.mesa-root .ficha-atalhos { display: grid; gap: 5px; padding: 8px 0 0; background: #0a101f; border-top: 1px solid #243047; }
+.mesa-root .ficha-atalhos .mesa-btn { margin: 0; padding: 9px 5px; font-size: 10px; }
+.mesa-root .ficha-identidade { gap: 0; }
+.mesa-root .vital { padding: 7px 3px; }
+.mesa-root .ficha-pv { padding: 10px; }
+.mesa-root .ficha-secao-rotulo { margin: 12px 0 8px; }
+.mesa-root .atributo { padding: 8px 5px 5px; gap: 3px; }
