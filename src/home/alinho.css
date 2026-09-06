@@ -47,7 +47,29 @@
 .alinho-review dd { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .alinho-note, .alinho-answer { background: #0ac8b90b; border-left: 2px solid #0ac8b9; padding: 14px; margin: 16px 0; }
 .alinho-note p, .alinho-answer p { margin: 6px 0 0; }
-.alinho-answer strong { color: #0ac8b9; }
+.alinho-answer { border: 1px solid #0ac8b933; border-left: 3px solid #0ac8b9; border-radius: 12px; padding: 18px; }
+.alinho-answer-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 16px; }
+.alinho-answer-heading > strong { color: #0ac8b9; }
+.alinho-answer-heading > span { color: #bbc7ce; font-size: 11px; padding: 3px 8px; border: 1px solid #0ac8b933; border-radius: 20px; }
+.alinho-markdown { color: #d3d8dd; line-height: 1.75; overflow-wrap: anywhere; }
+.alinho-markdown p { color: inherit; margin: 0 0 14px; }
+.alinho-markdown strong { color: #f0e6d2; font-weight: 700; }
+.alinho-markdown ul, .alinho-markdown ol { padding-left: 22px; margin: 12px 0 18px; }
+.alinho-markdown li { margin: 8px 0; padding-left: 3px; }
+.alinho-markdown li::marker { color: #0ac8b9; }
+.alinho-markdown li > p { margin-bottom: 8px; }
+.alinho-markdown :is(h1, h2, h3, h4, h5, h6) { font: 700 16px/1.4 var(--font-sans, sans-serif); color: #f0e6d2; margin: 20px 0 10px; }
+.alinho-markdown a { color: #0ac8b9; text-decoration: underline; }
+.alinho-markdown blockquote { margin: 14px 0; padding: 8px 12px; border-left: 2px solid #c8aa6e; background: #c8aa6e0b; }
+.alinho-markdown code { font-size: .9em; background: #010a1380; border-radius: 4px; padding: 2px 4px; }
+.alinho-markdown pre { overflow-x: auto; padding: 12px; background: #010a13; border-radius: 8px; }
+.alinho-markdown hr { border: 0; border-top: 1px solid #c8aa6e33; margin: 18px 0; }
+.alinho-table { max-width: 100%; overflow-x: auto; margin: 14px 0; }
+.alinho-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.alinho-table th, .alinho-table td { padding: 10px; border: 1px solid #c8aa6e33; text-align: left; vertical-align: top; min-width: 100px; }
+.alinho-table th { background: #0d2040; color: #f0e6d2; }
+.alinho-markdown > :first-child { margin-top: 0; }
+.alinho-markdown > :last-child { margin-bottom: 0; }
 .alinho-body .alinho-storage { font-size: 11px; margin-top: 16px; }
 .alinho-topics { display: grid; gap: 8px; }
 .alinho-topics button { display: flex; justify-content: space-between; gap: 12px; text-align: left; background: #0d2040; border: 1px solid #c8aa6e44; border-radius: 8px; color: #f0e6d2; padding: 12px; font: inherit; cursor: pointer; }

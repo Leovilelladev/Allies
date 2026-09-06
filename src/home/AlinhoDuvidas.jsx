@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { DUVIDAS } from './alinhoModelo';
 import { perguntarAlinho } from './alinhoApi';
 
@@ -50,7 +52,7 @@ export default function AlinhoDuvidas() {
     </form>
     {carregando && <p role="status" className="alinho-storage">Preparando sua resposta…</p>}
     {erro && <div role="alert" className="alinho-note">{erro}</div>}
-    {resposta && <div className="alinho-answer" role="status"><strong>Alinho · {origem}</strong><p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{resposta}</p>{incompleta && <p>A resposta atingiu o limite de tamanho. Tente uma pergunta mais específica.</p>}</div>}
+    {resposta && <div className="alinho-answer" role="status"><div className="alinho-answer-heading"><strong>Alinho</strong><span>{origem}</span></div><div className="alinho-markdown"><Markdown remarkPlugins={[remarkGfm]} skipHtml components={{ a: ({ children, href }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>, img: () => null, table: ({ children }) => <div className="alinho-table" tabIndex={0} role="region" aria-label="Tabela da resposta"><table>{children}</table></div> }}>{resposta}</Markdown></div>{incompleta && <p>A resposta atingiu o limite de tamanho. Tente uma pergunta mais específica.</p>}</div>}
     {fontes.length > 0 && <div className="alinho-fontes"><strong>Confira na fonte</strong>{fontes.map((f) => <a key={f.numero} href={f.url} target="_blank" rel="noreferrer">[{f.numero}] {f.titulo} · página {f.pagina} ↗</a>)}</div>}
     <p className="alinho-storage">Biblioteca: SRD 5.2.1, compatível com a revisão de 2024. A fonte está em inglês; a explicação em português é gerada por IA e pode errar. O SRD não inclui todos os livros comerciais.</p>
     <details className="alinho-licenca"><summary>Fonte e licença da biblioteca</summary><p>This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at <a href="https://www.dndbeyond.com/srd" target="_blank" rel="noreferrer">https://www.dndbeyond.com/srd</a>. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at <a href="https://creativecommons.org/licenses/by/4.0/legalcode" target="_blank" rel="noreferrer">https://creativecommons.org/licenses/by/4.0/legalcode</a>.</p><p>Texto extraído e dividido em trechos para busca pelo Allies. Explicações em português não são traduções oficiais.</p></details>
