@@ -21,3 +21,15 @@ for (const e of EFEITOS) for (const progresso of [0, .2, .35, .7, .999]) {
 desenharEfeitos(g, []);
 g.destroy();
 console.log('Efeitos: validação, deduplicação, limite, expiração e renderização dos cinco tipos OK');
+
+// O modo reduzido não pode regredir para o mesmo círculo em todos os ataques.
+const desenhos = [];
+for (const e of EFEITOS) {
+  const comandos = [];
+  const recorder = new Proxy({}, { get: (_, metodo) => (...args) => { comandos.push([metodo, args]); return recorder; } });
+  desenharEfeitos(recorder, [{ ...base, tipo: e.id, progresso: .5 }], true);
+  assert.ok(comandos.some(([metodo]) => ['fill', 'poly', 'lineTo'].includes(metodo)), 'Mantém a ilustração em movimento reduzido');
+  desenhos.push(JSON.stringify(comandos));
+}
+assert.equal(new Set(desenhos).size, EFEITOS.length);
+console.log('Movimento reduzido: os cinco ataques mantêm ilustrações distintas.');
