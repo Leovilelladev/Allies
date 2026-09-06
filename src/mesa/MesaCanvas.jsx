@@ -1,3 +1,5 @@
+import { EFEITOS, criarFilaEfeitos } from './efeitos';
+import { desenharEfeitos } from './pixiEfeitos';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Application, Assets, Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
@@ -50,6 +52,7 @@ const FERRAMENTAS = [
   { id: 'selecionar', rotulo: 'Selecionar', atalho: 'V', icone: '⌖', mestreApenas: false },
   { id: 'token', rotulo: 'Novo token', atalho: 'T', icone: '＋', mestreApenas: true },
   { id: 'medir', rotulo: 'Medir', atalho: 'M', icone: '↔', mestreApenas: false },
+  { id: 'efeito', rotulo: 'Efeitos', atalho: 'E', icone: '✦', mestreApenas: false },
   { id: 'area', rotulo: 'Área', atalho: 'Q', icone: '◎', mestreApenas: false },
   { id: 'parede', rotulo: 'Paredes', atalho: 'P', icone: '▤', mestreApenas: true },
   { id: 'revelar', rotulo: 'Revelar névoa', atalho: 'R', icone: '◐', mestreApenas: true },
@@ -147,7 +150,11 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
   const [fogRevelado, setFogRevelado] = useState([]);
   const [verComoJogador, setVerComoJogador] = useState(false);
   const [observadorId, setObservadorId] = useState('');
+  const [tipoEfeito, setTipoEfeito] = useState('fogo');
+  const [origemEfeito, setOrigemEfeito] = useState(null);
+  const origemEfeitoRef = useRef(null);
   const [ferramenta, setFerramenta] = useState('selecionar');
+  useEffect(() => { origemEfeitoRef.current = null; setOrigemEfeito(null); }, [ferramenta, tipoEfeito, cenaId]);
   const [abaDock, setAbaDock] = useState('ficha');
   const [dockAberto, setDockAberto] = useState(true);
   const [modoRolagem, setModoRolagem] = useState(MODOS.NORMAL);
@@ -306,6 +313,7 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
   }), [comoJogador, fogAtivo, celulasVisiveis, fogRevelado, gridSize]);
 
   liveRef.current.ferramenta = ferramenta;
+  liveRef.current.tipoEfeito = tipoEfeito;
   liveRef.current.ehMestre = ehMestre;
   liveRef.current.tokens = tokensComVida;
   liveRef.current.selectedId = selectedId;
@@ -1278,6 +1286,7 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
       }
 
       const atalhos = {
+        e: 'efeito',
         v: 'selecionar',
         t: 'token',
         m: 'medir',
@@ -1328,6 +1337,11 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
       gridLayer.eventMode = 'none';
       const tokensLayer = new Container();
       tokensLayer.sortableChildren = true;
+      const efeitosLayer = new Graphics();
+      efeitosLayer.eventMode = 'none';
+      const filaEfeitos = criarFilaEfeitos();
+      const movimentoReduzido = window.matchMedia('(prefers-reduced-motion: reduce)');
+      let ultimoEfeito = -Infinity;
       const areasLayer = new Graphics();
       areasLayer.eventMode = 'none';
       const paredesLayer = new Graphics();
@@ -1352,6 +1366,7 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
         gridLayer,
         areasLayer,
         tokensLayer,
+        efeitosLayer,
         foraLayer,
         fogLayer,
         paredesLayer,
@@ -1399,6 +1414,28 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
       app.stage.on('pointerdown', (e) => {
         const f = liveRef.current.ferramenta;
 
+        if (f === 'efeito' && !e.altKey) {
+          if (e.button !== 0) return;
+          const p = world.toLocal(e.global);
+          const origem = origemEfeitoRef.current;
+          if (!origem) {
+            origemEfeitoRef.current = { x: p.x, y: p.y };
+            setOrigemEfeito(origemEfeitoRef.current);
+          } else {
+            const agora = performance.now();
+            if (agora - ultimoEfeito < 700) return;
+            ultimoEfeito = agora;
+            const payload = { id: crypto.randomUUID(), tipo: liveRef.current.tipoEfeito, x1: origem.x, y1: origem.y, x2: p.x, y2: p.y, tamanho: Math.min(600, Math.max(10, liveRef.current.gridSize * 1.5)) };
+            if (filaEfeitos.adicionar(payload, agora)) {
+              canalPing.send({ type: 'broadcast', event: 'efeito', payload }).then(status => {
+                if (!destruido && status !== 'ok') toast('O efeito apareceu só para você. Não foi possível sincronizar.', 'erro');
+              }).catch(() => { if (!destruido) toast('Não foi possível compartilhar o efeito.', 'erro'); });
+            }
+            origemEfeitoRef.current = null;
+            setOrigemEfeito(null);
+          }
+          return;
+        }
         if (e.altKey) {
           const p = world.toLocal(e.global);
           dispararPing(p.x, p.y);
@@ -1551,6 +1588,9 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
 
       const canalPing = sb
         .channel(`mesa-ping-${cenaId}`)
+        .on('broadcast', { event: 'efeito' }, ({ payload }) => {
+          if (!destruido) filaEfeitos.adicionar(payload, performance.now());
+        })
         .on('broadcast', { event: 'ping' }, ({ payload }) => {
           if (payload && typeof payload.x === 'number') dispararPing(payload.x, payload.y, true);
         })
@@ -1561,6 +1601,9 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
       app.ticker.add((tick) => {
         const p = pixiRef.current;
         if (!p) return;
+        desenharEfeitos(efeitosLayer, filaEfeitos.quadro(performance.now()), movimentoReduzido.matches);
+        const origem = origemEfeitoRef.current;
+        if (origem && liveRef.current.ferramenta === 'efeito') efeitosLayer.circle(origem.x, origem.y, 12).stroke({ color: 0xffdc99, width: 2 });
         const dt = tick.deltaMS / 1000;
         let mudou = false;
         for (const ping of p.pings) {
@@ -2320,6 +2363,14 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
       <div ref={containerRef} className="mesa-stage">
         <Dado3DHost cenaId={cenaId} scale={scale} stagePos={stagePos} />
       </div>
+
+      {ferramenta === 'efeito' && <div className="ferramenta-config">
+        <span className="ferramenta-config-titulo">Efeitos de ataque</span>
+        <div className="ferramenta-config-grupo">{EFEITOS.map(e => <button key={e.id} className={tipoEfeito === e.id ? 'mesa-btn is-ativo' : 'mesa-btn'} aria-pressed={tipoEfeito === e.id} onClick={() => setTipoEfeito(e.id)} title={e.nome}>{e.icone} {e.nome}</button>)}</div>
+        <span className="ferramenta-config-dica" role="status">{origemEfeito ? 'Agora clique no alvo ou no centro da explosão.' : 'Clique na origem do ataque e depois no destino.'}</span>
+        {origemEfeito && <button className="mesa-btn" onClick={() => { origemEfeitoRef.current = null; setOrigemEfeito(null); }}>Cancelar origem</button>}
+        <span className="ferramenta-config-dica">Apenas visual · sem dano automático · Esc para sair</span>
+      </div>}
 
       {ferramenta === 'parede' && ehMestre && (
         <div className="ferramenta-config">
