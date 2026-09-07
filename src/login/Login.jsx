@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { sb } from '../shared/supabaseClient';
 import { obterBackgroundAleatorio } from './backgrounds';
 import './login.css';
+import { Astra_login } from './Astra_auth';
 
 function traduzErro(msg) {
   if (/invalid login credentials/i.test(msg)) return 'Usuário ou senha incorretos.';
@@ -110,45 +111,7 @@ export default function Login({ onAuthSuccess }) {
         localStorage.setItem('allies_usuario', JSON.stringify(usuarioSessao));
         if (onAuthSuccess) onAuthSuccess(usuarioSessao);
       } else {
-        // Modo Login
-        const { data: usuarioEncontrado, error: busError } = await sb
-          .from('usuarios')
-          .select('*')
-          .ilike('nome_usuario', usuarioLimpo)
-          .maybeSingle();
-
-        if (busError) {
-          throw new Error('Erro ao buscar usuário: ' + busError.message);
-        }
-
-        if (!usuarioEncontrado) {
-          setErro('Usuário não encontrado.');
-          setCarregando(false);
-          return;
-        }
-
-        if (usuarioEncontrado.senha !== senha) {
-          setErro('Senha incorreta.');
-          setCarregando(false);
-          return;
-        }
-
-        // Tenta logar no Supabase Auth em segundo plano
-        try {
-          await sb.auth.signInWithPassword({
-            email: emailInterno,
-            password: senha,
-          });
-        } catch (authErr) {
-          console.warn('Nota sobre login Supabase Auth:', authErr);
-        }
-
-        const usuarioSessao = {
-          id: usuarioEncontrado.id,
-          nome_usuario: usuarioEncontrado.nome_usuario,
-          nome_exibicao: usuarioEncontrado.nome_exibicao || usuarioEncontrado.nome_usuario,
-          email: emailInterno,
-        };
+        const usuarioSessao = await Astra_login(sb, usuarioLimpo, senha);
 
         localStorage.setItem('allies_usuario', JSON.stringify(usuarioSessao));
         if (onAuthSuccess) onAuthSuccess(usuarioSessao);

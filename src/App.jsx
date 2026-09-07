@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { sb, ToastProvider, ConfirmProvider } from './shared';
 import { Login } from './login';
+import { Astra_restaurarSessao } from './login/Astra_auth';
 import { Home } from './home';
 
 const Mesa = lazy(() => import('./mesa/Mesa'));
@@ -36,57 +37,12 @@ export default function App() {
 
     const inicializarSessao = async () => {
       try {
-        const salvoLocal = localStorage.getItem('allies_usuario');
-        if (salvoLocal) {
-          const uData = JSON.parse(salvoLocal);
-          if (uData?.id) {
-            // Valida se usuario ainda existe no Supabase
-            const { data: uDb } = await sb
-              .from('usuarios')
-              .select('id, nome_usuario, nome_exibicao')
-              .eq('id', uData.id)
-              .maybeSingle();
-
-            if (uDb) {
-              setUsuarioAtual({
-                id: uDb.id,
-                nome_usuario: uDb.nome_usuario,
-                nome_exibicao: uDb.nome_exibicao || uDb.nome_usuario,
-                email: `${uDb.nome_usuario}@allies.local`,
-              });
-              setCarregandoSessao(false);
-              return;
-            }
-          }
-        }
-
-        // Tenta pegar de Supabase Auth
-        const { data: authData } = await sb.auth.getSession();
-        if (authData?.session?.user) {
-          const authUser = authData.session.user;
-          const uNome =
-            authUser.user_metadata?.usuario ||
-            authUser.email?.split('@')[0] ||
-            '';
-
-          if (uNome) {
-            const { data: uDb } = await sb
-              .from('usuarios')
-              .select('id, nome_usuario, nome_exibicao')
-              .ilike('nome_usuario', uNome)
-              .maybeSingle();
-
-            if (uDb) {
-              const uObj = {
-                id: uDb.id,
-                nome_usuario: uDb.nome_usuario,
-                nome_exibicao: uDb.nome_exibicao || uDb.nome_usuario,
-                email: authUser.email,
-              };
-              localStorage.setItem('allies_usuario', JSON.stringify(uObj));
-              setUsuarioAtual(uObj);
-            }
-          }
+        const usuario = await Astra_restaurarSessao(sb);
+        if (usuario) {
+          localStorage.setItem('allies_usuario', JSON.stringify(usuario));
+          setUsuarioAtual(usuario);
+        } else {
+          localStorage.removeItem('allies_usuario');
         }
       } catch (err) {
         console.warn('Erro ao restaurar sessão:', err);
