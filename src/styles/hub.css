@@ -4136,3 +4136,13 @@ body, html {
 @media (max-width: 480px) {
   .nexus-dropdown { width: calc(100vw - 24px); right: -8px; }
 }
+
+
+/* Foto de perfil dentro dos chips empilhados (cards de campanha, sessao e personagem) */
+.nexus-avatar-chip img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}

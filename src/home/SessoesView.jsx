@@ -523,8 +523,13 @@ export default function SessoesView({
                         const u = perfis[p.usuario_id];
                         const uNome = u?.nome_exibicao || u?.nome || u?.nome_usuario || 'Aventureiro';
                         return (
-                          <div key={p.usuario_id} className="nexus-avatar-chip" title={uNome}>
-                            {initials(uNome)}
+                          <div
+                            key={p.usuario_id}
+                            className="nexus-avatar-chip"
+                            title={uNome}
+                            style={u?.cor_destaque ? { borderColor: u.cor_destaque } : undefined}
+                          >
+                            {u?.avatar_url ? <img src={u.avatar_url} alt={uNome} /> : initials(uNome)}
                           </div>
                         );
                       })}

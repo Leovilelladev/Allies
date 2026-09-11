@@ -290,8 +290,17 @@ export default function PersonagensView({
                   {/* Rodapé: Jogador & Botões de Ação */}
                   <div className="nexus-character-footer">
                     <div className="nexus-avatars-stack">
-                      <div className="nexus-avatar-chip" style={{ width: '28px', height: '28px', fontSize: '10px' }} title={`Jogador: ${donoNome}`}>
-                        {initials(donoNome)}
+                      <div
+                        className="nexus-avatar-chip"
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          fontSize: '10px',
+                          ...(dono?.cor_destaque ? { borderColor: dono.cor_destaque } : {}),
+                        }}
+                        title={`Jogador: ${donoNome}`}
+                      >
+                        {dono?.avatar_url ? <img src={dono.avatar_url} alt={donoNome} /> : initials(donoNome)}
                       </div>
                       <span
                         style={{

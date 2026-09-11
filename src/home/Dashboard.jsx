@@ -173,8 +173,16 @@ export default function Dashboard({
 
                   <div className="nexus-card-footer">
                     <div className="nexus-avatars-stack">
-                      <div className="nexus-avatar-chip" title={`GM: ${mestreNome}`}>
-                        {initials(mestreNome)}
+                      <div
+                        className="nexus-avatar-chip"
+                        title={`GM: ${mestreNome}`}
+                        style={mestre?.cor_destaque ? { borderColor: mestre.cor_destaque } : undefined}
+                      >
+                        {mestre?.avatar_url ? (
+                          <img src={mestre.avatar_url} alt={mestreNome} />
+                        ) : (
+                          initials(mestreNome)
+                        )}
                       </div>
                       {nFichas > 0 && (
                         <div
