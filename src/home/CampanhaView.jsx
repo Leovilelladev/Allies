@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { obterRetratoPersonagem } from '../shared';
+import Avatar from '../shared/Avatar';
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
@@ -40,6 +41,7 @@ export default function CampanhaView({
   onExcluirCampanha,
   onSairCampanha,
   onConvidar,
+  onAbrirPerfil,
   onAbrirMesa,
   onNovaFicha,
   onAbrirFicha,
@@ -198,24 +200,28 @@ export default function CampanhaView({
             const u = perfis[m.usuario_id];
             const nome = u?.nome_exibicao || u?.nome || u?.nome_usuario || '—';
             return (
-              <span
+              <button
                 key={m.usuario_id}
+                type="button"
+                className="perfil-chip-membro"
+                title={`Ver perfil de ${nome}`}
+                onClick={() => onAbrirPerfil?.(m.usuario_id)}
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '4px 10px',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  fontWeight: 600,
                   background: ehMestre ? 'rgba(229, 197, 135, 0.2)' : 'rgba(255, 255, 255, 0.08)',
                   border: ehMestre ? '1px solid rgba(229, 197, 135, 0.5)' : '1px solid rgba(255, 255, 255, 0.15)',
                   color: ehMestre ? 'var(--color-primary)' : 'var(--color-on-surface)',
                 }}
               >
+                <Avatar
+                  url={u?.avatar_url}
+                  nome={nome}
+                  cor={u?.cor_destaque || (ehMestre ? 'var(--color-primary)' : undefined)}
+                  tamanho={20}
+                  espessura={1}
+                />
                 {ehMestre && <span className="material-symbols-outlined text-[14px]">crown</span>}
                 <span>{nome}</span>
-              </span>
+              </button>
             );
           })}
         </div>

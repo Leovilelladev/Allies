@@ -7,3 +7,4 @@ export { default as CampanhaView } from './CampanhaView';
 export { default as FichaView } from './FichaView';
 
 
+export { default as PerfilView } from './PerfilView';

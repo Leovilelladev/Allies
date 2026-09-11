@@ -251,3 +251,56 @@ BEGIN
     WHEN duplicate_object THEN NULL;
   END;
 END $$;
+
+-- ==============================================================================
+-- PERFIL DE CONTA + NOTIFICAÇÕES (set/2026)
+-- Já aplicado no projeto rpg-campanhas via migrations:
+--   perfil_campos_e_notificacoes
+--   notificacoes_triggers
+--   lembretes_sessao_e_realtime
+--   campanha_personagens_permite_membro_sem_personagem
+-- ==============================================================================
+
+-- Campos novos de perfil
+ALTER TABLE public.usuarios
+  ADD COLUMN IF NOT EXISTS bio TEXT,
+  ADD COLUMN IF NOT EXISTS titulo VARCHAR(60),
+  ADD COLUMN IF NOT EXISTS cor_destaque VARCHAR(9) DEFAULT '#c8aa6e',
+  ADD COLUMN IF NOT EXISTS preferencias JSONB DEFAULT '{}'::jsonb NOT NULL,
+  ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMPTZ DEFAULT NOW();
+
+-- Um jogador pode ser membro da campanha antes de ter personagem
+ALTER TABLE public.campanha_personagens ALTER COLUMN personagem_id DROP NOT NULL;
+
+-- Tabela de notificações
+CREATE TABLE IF NOT EXISTS public.notificacoes (
+  id SERIAL PRIMARY KEY,
+  usuario_id INT NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+  tipo VARCHAR(40) NOT NULL,   -- convite_campanha | personagem_adicionado | nova_sessao | sessao_remarcada | sessao_proxima
+  titulo TEXT NOT NULL,
+  mensagem TEXT,
+  campanha_id INT REFERENCES public.campanhas(id) ON DELETE CASCADE,
+  sessao_id INT REFERENCES public.sessoes(id) ON DELETE CASCADE,
+  personagem_id INT REFERENCES public.personagens(id) ON DELETE CASCADE,
+  ator_id INT REFERENCES public.usuarios(id) ON DELETE SET NULL,
+  lida BOOLEAN NOT NULL DEFAULT FALSE,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notificacoes_usuario ON public.notificacoes(usuario_id, criado_em DESC);
+CREATE INDEX IF NOT EXISTS idx_notificacoes_nao_lidas ON public.notificacoes(usuario_id) WHERE lida = FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_notificacao_sessao_proxima
+  ON public.notificacoes(usuario_id, tipo, sessao_id) WHERE tipo = 'sessao_proxima';
+
+ALTER TABLE public.notificacoes ENABLE ROW LEVEL SECURITY;
+-- SELECT/UPDATE/DELETE restritos a usuario_id = current_user_id(); INSERT liberado (triggers escrevem para terceiros).
+
+-- Geradores automáticos (SECURITY DEFINER):
+--   notificar_membros_campanha(...)          helper
+--   trg_notificar_campanha_personagem()      AFTER INSERT ON campanha_personagens
+--   trg_notificar_sessao_nova()              AFTER INSERT ON sessoes
+--   trg_notificar_sessao_remarcada()         AFTER UPDATE ON sessoes (data_agendada)
+--   gerar_lembretes_sessoes()                RPC chamado pelo hub (sessões nas próximas 48h)
+
+-- Realtime
+-- ALTER PUBLICATION supabase_realtime ADD TABLE public.notificacoes;
