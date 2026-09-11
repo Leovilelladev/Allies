@@ -1,23 +1,38 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { sb } from '../shared/supabaseClient';
 import { useToast } from '../shared/Toast';
 import { useConfirm } from '../shared/ModalConfirmar';
+import Avatar from '../shared/Avatar';
+import useFecharFora from '../shared/useFecharFora';
+import {
+  listarNotificacoes,
+  marcarComoLida,
+  marcarTodasComoLidas,
+  excluirNotificacao,
+  limparLidas,
+  gerarLembretesSessoes,
+  inscreverNotificacoes,
+  metaNotificacao,
+  lembretesDispensados,
+  dispensarLembrete,
+  PREFS_NOTIFICACAO_PADRAO,
+} from '../shared/notificacoes';
+import { carregarPerfil } from '../shared/perfil';
 import Dashboard from './Dashboard';
 import SessoesView from './SessoesView';
 import PersonagensView from './PersonagensView';
 import CampanhaView from './CampanhaView';
 import FichaView from './FichaView';
+import PerfilView from './PerfilView';
 import ModalCampanha from './components/ModalCampanha';
 import ModalSessao from './components/ModalSessao';
 import ModalNovaFicha from './components/ModalNovaFicha';
 import ModalConvidar from './components/ModalConvidar';
 import ModalCriacaoCampeaoHextech from './components/ModalCriacaoCampeaoHextech';
+import ModalConfiguracoes from './components/ModalConfiguracoes';
+import MenuConfiguracoes from './components/MenuConfiguracoes';
+import PainelNotificacoes from './components/PainelNotificacoes';
 import Alinho from './Alinho';
-
-function initials(nome) {
-  if (!nome) return 'A';
-  return nome.trim().slice(0, 2).toUpperCase();
-}
 
 export default function Home({
   usuarioAtual,
@@ -53,6 +68,21 @@ export default function Home({
   const [modalSessao, setModalSessao] = useState(null);
   const [modalNovaFicha, setModalNovaFicha] = useState(false);
   const [modalConvidar, setModalConvidar] = useState(false);
+  const [modalConfig, setModalConfig] = useState(null); // { aba }
+
+  // Perfil, notificações e menus da topbar
+  const [meuPerfil, setMeuPerfil] = useState(null);
+  const [perfilVisto, setPerfilVisto] = useState(null);
+  const [notificacoes, setNotificacoes] = useState([]);
+  const [carregandoNotif, setCarregandoNotif] = useState(true);
+  const [painelNotif, setPainelNotif] = useState(false);
+  const [menuConfig, setMenuConfig] = useState(false);
+
+  const refNotif = useRef(null);
+  const refConfig = useRef(null);
+
+  useFecharFora(refNotif, () => setPainelNotif(false), painelNotif);
+  useFecharFora(refConfig, () => setMenuConfig(false), menuConfig);
 
   // 1. Carregar perfis dos usuários a partir da tabela public.usuarios
   const carregarPerfis = useCallback(
@@ -62,7 +92,7 @@ export default function Home({
 
       const { data, error } = await sb
         .from('usuarios')
-        .select('id, nome_usuario, nome_exibicao, avatar_url, criado_em')
+        .select('id, nome_usuario, nome_exibicao, avatar_url, cor_destaque, titulo, criado_em')
         .in('id', idsLimpos);
 
       if (!error && data) {
@@ -76,6 +106,8 @@ export default function Home({
               usuario: p.nome_usuario,
               nome_usuario: p.nome_usuario,
               avatar_url: p.avatar_url,
+              cor_destaque: p.cor_destaque,
+              titulo: p.titulo,
             };
           });
           return novo;
@@ -198,6 +230,166 @@ export default function Home({
   useEffect(() => {
     carregarDadosHub();
   }, [carregarDadosHub]);
+
+  // 2.1 Perfil da conta logada
+  useEffect(() => {
+    if (!usuarioAtual?.id) return undefined;
+    let ativo = true;
+
+    carregarPerfil(usuarioAtual.id)
+      .then((p) => {
+        if (ativo && p) setMeuPerfil(p);
+      })
+      .catch((err) => console.warn('Erro ao carregar perfil:', err.message));
+
+    return () => {
+      ativo = false;
+    };
+  }, [usuarioAtual?.id]);
+
+  // 2.2 Notificações (carga inicial + lembretes + tempo real)
+  useEffect(() => {
+    if (!usuarioAtual?.id) return undefined;
+    let ativo = true;
+
+    (async () => {
+      await gerarLembretesSessoes();
+      const lista = await listarNotificacoes(usuarioAtual.id);
+      if (!ativo) return;
+      setNotificacoes(lista);
+      setCarregandoNotif(false);
+    })();
+
+    const cancelar = inscreverNotificacoes(usuarioAtual.id, (nova) => {
+      if (!ativo) return;
+      setNotificacoes((prev) => (prev.some((n) => n.id === nova.id) ? prev : [nova, ...prev]));
+    });
+
+    return () => {
+      ativo = false;
+      cancelar();
+    };
+  }, [usuarioAtual?.id]);
+
+  const prefsNotif = useMemo(
+    () => ({ ...PREFS_NOTIFICACAO_PADRAO, ...(meuPerfil?.preferencias?.notificacoes || {}) }),
+    [meuPerfil]
+  );
+
+  const notificacoesVisiveis = useMemo(() => {
+    const dispensados = new Set(lembretesDispensados());
+    return notificacoes.filter((n) => {
+      if (n.tipo === 'sessao_proxima' && dispensados.has(Number(n.sessao_id))) return false;
+      const chave = metaNotificacao(n.tipo).prefChave;
+      return !chave || prefsNotif[chave] !== false;
+    });
+  }, [notificacoes, prefsNotif]);
+
+  const totalNaoLidas = useMemo(
+    () => notificacoesVisiveis.filter((n) => !n.lida).length,
+    [notificacoesVisiveis]
+  );
+
+  const handleMarcarTodas = async () => {
+    setNotificacoes((prev) => prev.map((n) => ({ ...n, lida: true })));
+    try {
+      await marcarTodasComoLidas(usuarioAtual.id);
+    } catch (err) {
+      toast('Erro ao marcar notificações: ' + err.message, 'erro');
+    }
+  };
+
+  const handleExcluirNotificacao = async (id) => {
+    const alvo = notificacoes.find((n) => n.id === id);
+    if (alvo?.tipo === 'sessao_proxima') dispensarLembrete(alvo.sessao_id);
+    setNotificacoes((prev) => prev.filter((n) => n.id !== id));
+    try {
+      await excluirNotificacao(id);
+    } catch (err) {
+      toast('Erro ao remover notificação: ' + err.message, 'erro');
+    }
+  };
+
+  const handleLimparLidas = async () => {
+    notificacoes
+      .filter((n) => n.lida && n.tipo === 'sessao_proxima')
+      .forEach((n) => dispensarLembrete(n.sessao_id));
+    setNotificacoes((prev) => prev.filter((n) => !n.lida));
+    try {
+      await limparLidas(usuarioAtual.id);
+    } catch (err) {
+      toast('Erro ao limpar notificações: ' + err.message, 'erro');
+    }
+  };
+
+  const handleAbrirNotificacao = async (n) => {
+    setPainelNotif(false);
+
+    if (!n.lida) {
+      setNotificacoes((prev) => prev.map((x) => (x.id === n.id ? { ...x, lida: true } : x)));
+      try {
+        await marcarComoLida(n.id);
+      } catch (err) {
+        console.warn('Erro ao marcar notificação:', err.message);
+      }
+    }
+
+    if (n.personagem_id) {
+      handleAbrirFicha(n.personagem_id);
+      return;
+    }
+    if (n.sessao_id) {
+      setMenuAtivo('sessoes');
+      setCampanhaAtual(null);
+      setView('sessoes');
+      return;
+    }
+    if (n.campanha_id) abrirCampanha(n.campanha_id);
+  };
+
+  // 2.3 Perfis de usuário (próprio e de outros jogadores)
+  const abrirPerfil = useCallback(
+    async (id) => {
+      const alvo = Number(id);
+      if (!alvo) return;
+
+      setPainelNotif(false);
+      setMenuConfig(false);
+      setView('perfil');
+
+      if (alvo === Number(usuarioAtual?.id) && meuPerfil) {
+        setPerfilVisto(meuPerfil);
+        return;
+      }
+
+      setPerfilVisto(null);
+      try {
+        const p = await carregarPerfil(alvo);
+        setPerfilVisto(p);
+      } catch (err) {
+        toast('Não foi possível abrir este perfil: ' + err.message, 'erro');
+      }
+    },
+    [usuarioAtual?.id, meuPerfil, toast]
+  );
+
+  const handlePerfilSalvo = (atualizado) => {
+    setMeuPerfil(atualizado);
+    setPerfis((prev) => ({
+      ...prev,
+      [atualizado.id]: {
+        ...(prev[atualizado.id] || {}),
+        id: atualizado.id,
+        nome: atualizado.nome_exibicao,
+        nome_exibicao: atualizado.nome_exibicao,
+        usuario: atualizado.nome_usuario,
+        nome_usuario: atualizado.nome_usuario,
+        avatar_url: atualizado.avatar_url,
+        cor_destaque: atualizado.cor_destaque,
+      },
+    }));
+    if (Number(perfilVisto?.id) === Number(atualizado.id)) setPerfilVisto(atualizado);
+  };
 
   // 3. Abrir Detalhes de Campanha
   const abrirCampanha = useCallback(
@@ -702,11 +894,18 @@ export default function Home({
   };
 
   const nomeExibicao =
+    meuPerfil?.nome_exibicao ||
     usuarioAtual?.nome_exibicao ||
     perfis[usuarioAtual?.id]?.nome ||
     perfis[usuarioAtual?.id]?.usuario ||
     usuarioAtual?.nome_usuario ||
     'Master Architect';
+
+  const perfilTopbar = meuPerfil || {
+    id: usuarioAtual?.id,
+    nome_usuario: usuarioAtual?.nome_usuario,
+    nome_exibicao: nomeExibicao,
+  };
 
   return (
     <div className="nexus-app-shell">
@@ -738,18 +937,76 @@ export default function Home({
           </div>
 
           <div className="nexus-nav-actions">
-            <button className="nexus-icon-btn" title="Notificações">
-              <span className="material-symbols-outlined text-2xl">notifications</span>
-              <span className="nexus-notification-dot"></span>
-            </button>
+            <div className="nexus-dropdown-wrap" ref={refNotif}>
+              <button
+                className={`nexus-icon-btn ${painelNotif ? 'aberto' : ''}`}
+                title="Notificações"
+                onClick={() => {
+                  setMenuConfig(false);
+                  setPainelNotif((v) => !v);
+                }}
+              >
+                <span className="material-symbols-outlined text-2xl">notifications</span>
+                {totalNaoLidas > 0 && (
+                  <span className="nexus-badge-contador">
+                    {totalNaoLidas > 9 ? '9+' : totalNaoLidas}
+                  </span>
+                )}
+              </button>
 
-            <button className="nexus-icon-btn" title="Configurações">
-              <span className="material-symbols-outlined text-2xl">settings</span>
-            </button>
+              {painelNotif && (
+                <PainelNotificacoes
+                  notificacoes={notificacoesVisiveis}
+                  carregando={carregandoNotif}
+                  onAbrir={handleAbrirNotificacao}
+                  onMarcarTodas={handleMarcarTodas}
+                  onExcluir={handleExcluirNotificacao}
+                  onLimparLidas={handleLimparLidas}
+                  onFechar={() => setPainelNotif(false)}
+                />
+              )}
+            </div>
 
-            <div className="nexus-user-profile-badge">
+            <div className="nexus-dropdown-wrap" ref={refConfig}>
+              <button
+                className={`nexus-icon-btn ${menuConfig ? 'aberto' : ''}`}
+                title="Configurações"
+                onClick={() => {
+                  setPainelNotif(false);
+                  setMenuConfig((v) => !v);
+                }}
+              >
+                <span className="material-symbols-outlined text-2xl">settings</span>
+              </button>
+
+              {menuConfig && (
+                <MenuConfiguracoes
+                  perfil={perfilTopbar}
+                  onMeuPerfil={() => abrirPerfil(usuarioAtual.id)}
+                  onConfiguracoes={(aba) => {
+                    setMenuConfig(false);
+                    setModalConfig({ aba });
+                  }}
+                  onSair={() => {
+                    setMenuConfig(false);
+                    onLogout();
+                  }}
+                />
+              )}
+            </div>
+
+            <div
+              className="nexus-user-profile-badge"
+              onClick={() => abrirPerfil(usuarioAtual.id)}
+              title="Ver meu perfil"
+            >
               <div className="nexus-user-name">{nomeExibicao}</div>
-              <div className="nexus-avatar-ring">{initials(nomeExibicao)}</div>
+              <Avatar
+                url={meuPerfil?.avatar_url}
+                nome={nomeExibicao}
+                cor={meuPerfil?.cor_destaque}
+                tamanho={40}
+              />
             </div>
 
             <button className="nexus-logout-btn" onClick={onLogout} title="Sair da conta">
@@ -765,10 +1022,25 @@ export default function Home({
         <aside className="nexus-sidebar">
           {/* Perfil no Topo da Sidebar */}
           <div className="nexus-sidebar-profile">
-            <div className="nexus-avatar-large-wrap">
-              <div className="nexus-avatar-large-img">{initials(nomeExibicao)}</div>
-            </div>
+            <Avatar
+              url={meuPerfil?.avatar_url}
+              nome={nomeExibicao}
+              cor={meuPerfil?.cor_destaque}
+              tamanho={96}
+              espessura={3}
+              onClick={() => abrirPerfil(usuarioAtual.id)}
+              titulo="Ver meu perfil"
+              style={{ marginBottom: '16px' }}
+            />
             <h2 className="nexus-profile-title">{nomeExibicao}</h2>
+            {meuPerfil?.titulo && (
+              <span
+                className="perfil-titulo-chip"
+                style={{ '--perfil-cor': meuPerfil.cor_destaque || 'var(--color-primary)' }}
+              >
+                {meuPerfil.titulo}
+              </span>
+            )}
           </div>
 
           {/* Navegação Principal */}
@@ -902,6 +1174,7 @@ export default function Home({
                 onExcluirCampanha={handleExcluirCampanha}
                 onSairCampanha={handleSairCampanha}
                 onConvidar={() => setModalConvidar(true)}
+                onAbrirPerfil={abrirPerfil}
                 onAbrirMesa={(cId, sId) => onAbrirMesa(cId, sId)}
                 onNovaFicha={() => setModalNovaFicha(true)}
                 onAbrirFicha={handleAbrirFicha}
@@ -909,6 +1182,23 @@ export default function Home({
                 onNovaSessao={() => setModalSessao({ modo: 'criar' })}
                 onEditarSessao={(s) => setModalSessao({ modo: 'editar', sessao: s })}
                 onExcluirSessao={handleExcluirSessao}
+              />
+            )}
+
+            {view === 'perfil' && (
+              <PerfilView
+                perfil={perfilVisto}
+                ehProprio={Number(perfilVisto?.id) === Number(usuarioAtual?.id)}
+                usuarioAtual={usuarioAtual}
+                campanhas={campanhas}
+                todasFichas={todasFichas}
+                campanhaPersonagens={campanhaPersonagens}
+                onVoltar={() => {
+                  setView(campanhaAtual ? 'campanha' : 'dashboard');
+                }}
+                onEditar={() => setModalConfig({ aba: 'perfil' })}
+                onAbrirCampanha={abrirCampanha}
+                onAbrirFicha={handleAbrirFicha}
               />
             )}
 
@@ -976,6 +1266,15 @@ export default function Home({
         <ModalConvidar
           onConvidar={handleConvidar}
           onCancelar={() => setModalConvidar(false)}
+        />
+      )}
+
+      {modalConfig && meuPerfil && (
+        <ModalConfiguracoes
+          perfil={meuPerfil}
+          abaInicial={modalConfig.aba}
+          onFechar={() => setModalConfig(null)}
+          onSalvo={handlePerfilSalvo}
         />
       )}
     </div>
