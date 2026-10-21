@@ -1,306 +1,526 @@
--- ==============================================================================
--- SCHEMA COMPLETO DO BANCO DE DADOS - ALLIES RPG (SUPABASE)
--- Execute este script no SQL Editor do painel Supabase (https://supabase.com/dashboard)
--- ==============================================================================
+-- Allies RPG — migração Auth/RLS compatível com o banco legado.
+--
+-- O domínio existente usa IDs inteiros e já possui dados. A migração preserva
+-- essas chaves e cria usuarios.auth_id como ponte para auth.users. Não substitua
+-- as tabelas por UUID sem uma migração de dados planejada.
+--
+-- Execute em uma transação no projeto Supabase após backup. token_hash é
+-- removido porque o cliente usa exclusivamente Supabase Auth.
 
--- 1. EXTENSÕES
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+BEGIN;
+
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE SCHEMA IF NOT EXISTS private;
+REVOKE ALL ON SCHEMA private FROM PUBLIC, anon, authenticated;
+GRANT USAGE ON SCHEMA private TO authenticated;
 
--- 2. LIMPEZA DE TABELAS ANTIGAS / LEGACY (SE EXISTIREM)
-DROP TABLE IF EXISTS sessao_participantes CASCADE;
-DROP TABLE IF EXISTS campanha_personagens CASCADE;
-DROP TABLE IF EXISTS personagens CASCADE;
-DROP TABLE IF EXISTS usuarios CASCADE;
-DROP TABLE IF EXISTS mesa_sons CASCADE;
-DROP TABLE IF EXISTS mesa_iniciativa CASCADE;
-DROP TABLE IF EXISTS mesa_chat CASCADE;
-DROP TABLE IF EXISTS mesa_tokens CASCADE;
-DROP TABLE IF EXISTS cenas CASCADE;
-DROP TABLE IF EXISTS fichas CASCADE;
-DROP TABLE IF EXISTS sessoes CASCADE;
-DROP TABLE IF EXISTS campanha_membros CASCADE;
-DROP TABLE IF EXISTS campanhas CASCADE;
-DROP TABLE IF EXISTS profiles CASCADE;
+-- Identidade e compatibilidade de colunas
+ALTER TABLE public.usuarios ADD COLUMN IF NOT EXISTS auth_id UUID;
 
--- 3. TABELA PROFILES (VINCULADA AO SUPABASE AUTH)
-CREATE TABLE public.profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  nome TEXT NOT NULL,
-  usuario TEXT UNIQUE NOT NULL,
-  avatar_url TEXT,
-  criado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
+UPDATE public.usuarios AS u
+SET auth_id = a.id
+FROM auth.users AS a
+WHERE u.auth_id IS NULL
+  AND lower(u.nome_usuario) = lower(split_part(a.email, '@', 1));
 
--- 4. TABELA CAMPANHAS
-CREATE TABLE public.campanhas (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  mestre_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  nome TEXT NOT NULL,
-  sistema TEXT DEFAULT 'D&D 5E',
-  descricao TEXT,
-  criado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.usuarios WHERE auth_id IS NULL) THEN
+    RAISE EXCEPTION 'Há perfis sem correspondência em auth.users; migração interrompida.';
+  END IF;
+END
+$$;
 
--- 5. TABELA CAMPANHA_MEMBROS
-CREATE TABLE public.campanha_membros (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  campanha_id UUID NOT NULL REFERENCES public.campanhas(id) ON DELETE CASCADE,
-  usuario_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  adicionado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-  UNIQUE(campanha_id, usuario_id)
-);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_usuarios_auth_id ON public.usuarios(auth_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'usuarios_auth_id_fkey' AND conrelid = 'public.usuarios'::regclass
+  ) THEN
+    ALTER TABLE public.usuarios ADD CONSTRAINT usuarios_auth_id_fkey
+      FOREIGN KEY (auth_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+  END IF;
+END
+$$;
+ALTER TABLE public.usuarios ALTER COLUMN auth_id SET NOT NULL;
+ALTER TABLE public.usuarios DROP COLUMN IF EXISTS token_hash;
 
--- 6. TABELA SESSOES
-CREATE TABLE public.sessoes (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  campanha_id UUID NOT NULL REFERENCES public.campanhas(id) ON DELETE CASCADE,
-  numero INT NOT NULL,
-  nome TEXT,
-  data TEXT,
-  resumo TEXT,
-  criado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-  UNIQUE(campanha_id, numero)
-);
+ALTER TABLE public.campanhas
+  ADD COLUMN IF NOT EXISTS nome TEXT,
+  ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMPTZ;
+UPDATE public.campanhas SET nome = COALESCE(NULLIF(nome, ''), titulo), atualizado_em = COALESCE(atualizado_em, criado_em, now())
+WHERE nome IS NULL OR atualizado_em IS NULL;
 
--- 7. TABELA FICHAS (PERSONAGENS)
-CREATE TABLE public.fichas (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  campanha_id UUID REFERENCES public.campanhas(id) ON DELETE SET NULL,
-  usuario_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  nome_personagem TEXT NOT NULL,
-  dados JSONB DEFAULT '{}'::jsonb NOT NULL,
-  criado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-  atualizado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
+ALTER TABLE public.campanha_personagens ADD COLUMN IF NOT EXISTS criado_em TIMESTAMPTZ;
+UPDATE public.campanha_personagens SET criado_em = COALESCE(criado_em, adicionado_em, now()) WHERE criado_em IS NULL;
 
--- 7.1 TABELA PERSONAGEM_ACOES (HABILIDADES E ACTION SLOTS RELACIONAIS D&D 5E)
-CREATE TABLE IF NOT EXISTS public.personagem_acoes (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  ficha_id UUID REFERENCES public.fichas(id) ON DELETE CASCADE,
-  personagem_id INT REFERENCES public.personagens(id) ON DELETE CASCADE,
-  nome TEXT NOT NULL,
-  tipo TEXT DEFAULT 'action' NOT NULL,
-  icone_url TEXT,
-  descricao TEXT,
-  alcance TEXT,
-  alvo TEXT,
-  tem_ataque BOOLEAN DEFAULT TRUE NOT NULL,
-  atributo_base TEXT DEFAULT 'for',
-  proficiente BOOLEAN DEFAULT TRUE NOT NULL,
-  bonus_adicional_acerto INT DEFAULT 0 NOT NULL,
-  formula_dano TEXT,
-  tipo_dano TEXT DEFAULT 'slashing',
-  tem_salvaguarda BOOLEAN DEFAULT FALSE NOT NULL,
-  salvaguarda_atributo TEXT,
-  salvaguarda_dc_custom INT,
-  tem_cargas BOOLEAN DEFAULT FALSE NOT NULL,
-  max_cargas INT,
-  cargas_atuais INT,
-  tipo_recarga TEXT DEFAULT 'long_rest',
-  criado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-  atualizado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
+ALTER TABLE public.sessoes
+  ADD COLUMN IF NOT EXISTS nome TEXT,
+  ADD COLUMN IF NOT EXISTS data TEXT,
+  ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMPTZ;
+UPDATE public.sessoes SET nome = COALESCE(NULLIF(nome, ''), titulo), data = COALESCE(data, data_agendada::text), atualizado_em = COALESCE(atualizado_em, criado_em, now())
+WHERE nome IS NULL OR data IS NULL OR atualizado_em IS NULL;
 
-CREATE INDEX IF NOT EXISTS idx_personagem_acoes_ficha ON public.personagem_acoes(ficha_id);
-CREATE INDEX IF NOT EXISTS idx_personagem_acoes_pers ON public.personagem_acoes(personagem_id);
+ALTER TABLE public.sessao_participantes ADD COLUMN IF NOT EXISTS criado_em TIMESTAMPTZ;
+UPDATE public.sessao_participantes SET criado_em = COALESCE(criado_em, now()) WHERE criado_em IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sessao_participante ON public.sessao_participantes(sessao_id, usuario_id);
 
+ALTER TABLE public.mesa_cenas
+  ADD COLUMN IF NOT EXISTS largura_quadrados INTEGER,
+  ADD COLUMN IF NOT EXISTS altura_quadrados INTEGER,
+  ADD COLUMN IF NOT EXISTS config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMPTZ;
+UPDATE public.mesa_cenas SET atualizado_em = COALESCE(atualizado_em, criado_em, now()) WHERE atualizado_em IS NULL;
 
--- 8. TABELA CENAS (MAPAS DA MESA VIRTUAL)
-CREATE TABLE public.cenas (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  campanha_id UUID NOT NULL REFERENCES public.campanhas(id) ON DELETE CASCADE,
-  sessao_id UUID NOT NULL REFERENCES public.sessoes(id) ON DELETE CASCADE,
-  nome TEXT NOT NULL,
-  mapa_url TEXT,
-  grid_tamanho INT DEFAULT 50 NOT NULL,
-  fog_ativo BOOLEAN DEFAULT FALSE NOT NULL,
-  fog_revelado JSONB DEFAULT '[]'::jsonb,
-  criado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
+ALTER TABLE public.mesa_tokens
+  ADD COLUMN IF NOT EXISTS ficha_id INTEGER,
+  ADD COLUMN IF NOT EXISTS tamanho DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS luz DOUBLE PRECISION NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS criado_por INTEGER,
+  ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMPTZ;
+UPDATE public.mesa_tokens SET ficha_id = COALESCE(ficha_id, personagem_id), tamanho = COALESCE(tamanho, raio), atualizado_em = COALESCE(atualizado_em, criado_em, now())
+WHERE ficha_id IS NULL OR tamanho IS NULL OR atualizado_em IS NULL;
 
--- 9. TABELA MESA_TOKENS
-CREATE TABLE public.mesa_tokens (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  cena_id UUID NOT NULL REFERENCES public.cenas(id) ON DELETE CASCADE,
-  ficha_id UUID REFERENCES public.fichas(id) ON DELETE SET NULL,
-  nome TEXT,
-  x FLOAT DEFAULT 0 NOT NULL,
-  y FLOAT DEFAULT 0 NOT NULL,
-  tamanho FLOAT DEFAULT 50 NOT NULL,
-  rotacao FLOAT DEFAULT 0 NOT NULL,
-  cor TEXT,
-  imagem_url TEXT,
-  dados JSONB DEFAULT '{}'::jsonb NOT NULL,
-  criado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
+CREATE INDEX IF NOT EXISTS idx_usuarios_auth_id ON public.usuarios(auth_id);
+CREATE INDEX IF NOT EXISTS idx_campanhas_mestre ON public.campanhas(mestre_id);
+CREATE INDEX IF NOT EXISTS idx_cp_campanha ON public.campanha_personagens(campanha_id);
+CREATE INDEX IF NOT EXISTS idx_cp_usuario ON public.campanha_personagens(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_cp_personagem ON public.campanha_personagens(personagem_id);
+CREATE INDEX IF NOT EXISTS idx_personagens_usuario ON public.personagens(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_sessoes_campanha_data ON public.sessoes(campanha_id, data_agendada);
+CREATE INDEX IF NOT EXISTS idx_cenas_sessao ON public.mesa_cenas(sessao_id);
+CREATE INDEX IF NOT EXISTS idx_cenas_iniciativa_atual ON public.mesa_cenas(iniciativa_atual_id);
+CREATE INDEX IF NOT EXISTS idx_tokens_cena ON public.mesa_tokens(cena_id);
+CREATE INDEX IF NOT EXISTS idx_tokens_personagem ON public.mesa_tokens(personagem_id);
+CREATE INDEX IF NOT EXISTS idx_areas_criado_por ON public.mesa_areas(criado_por);
+CREATE INDEX IF NOT EXISTS idx_chat_cena_tempo ON public.mesa_chat(cena_id, criado_em DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_usuario ON public.mesa_chat(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_iniciativa_criado_por ON public.mesa_iniciativa(criado_por);
+CREATE INDEX IF NOT EXISTS idx_sons_campanha ON public.mesa_sons(campanha_id);
+CREATE INDEX IF NOT EXISTS idx_participantes_usuario ON public.sessao_participantes(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_notificacoes_usuario ON public.notificacoes(usuario_id, criado_em DESC);
+CREATE INDEX IF NOT EXISTS idx_notificacoes_ator ON public.notificacoes(ator_id);
+CREATE INDEX IF NOT EXISTS idx_notificacoes_campanha ON public.notificacoes(campanha_id);
+CREATE INDEX IF NOT EXISTS idx_notificacoes_personagem ON public.notificacoes(personagem_id);
+CREATE INDEX IF NOT EXISTS idx_notificacoes_sessao ON public.notificacoes(sessao_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_notificacao_sessao_proxima ON public.notificacoes(usuario_id, tipo, sessao_id) WHERE tipo = 'sessao_proxima';
+DROP INDEX IF EXISTS public.mesa_cenas_sessao_idx;
+DROP INDEX IF EXISTS public.mesa_tokens_cena_idx;
+DROP INDEX IF EXISTS public.uniq_notificacao_sessao_proxima;
 
--- 10. TABELA MESA_CHAT (MENSAGENS E ROLAGENS DE DADOS)
-CREATE TABLE public.mesa_chat (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  cena_id UUID NOT NULL REFERENCES public.cenas(id) ON DELETE CASCADE,
-  usuario_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  autor_nome TEXT NOT NULL,
-  mensagem TEXT NOT NULL,
-  tipo TEXT DEFAULT 'texto' NOT NULL,
-  dados JSONB DEFAULT '{}'::jsonb,
-  criado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
+-- Funções de identidade e autorização (os IDs do domínio continuam inteiros)
+CREATE OR REPLACE FUNCTION private.current_user_id()
+RETURNS INTEGER LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT id FROM public.usuarios WHERE auth_id = (SELECT auth.uid()) LIMIT 1;
+$$;
 
--- 11. TABELA MESA_INICIATIVA
-CREATE TABLE public.mesa_iniciativa (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  cena_id UUID NOT NULL REFERENCES public.cenas(id) ON DELETE CASCADE,
-  token_id TEXT,
-  nome TEXT NOT NULL,
-  valor INT DEFAULT 0 NOT NULL,
-  ativo BOOLEAN DEFAULT TRUE NOT NULL,
-  criado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
+CREATE OR REPLACE FUNCTION private.eh_mestre_campanha(p_campanha_id INTEGER)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT p_campanha_id IS NOT NULL AND EXISTS (
+    SELECT 1 FROM public.campanhas WHERE id = p_campanha_id AND mestre_id = private.current_user_id()
+  );
+$$;
 
--- 12. TABELA MESA_SONS
-CREATE TABLE public.mesa_sons (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  campanha_id UUID NOT NULL REFERENCES public.campanhas(id) ON DELETE CASCADE,
-  nome TEXT NOT NULL,
-  som_url TEXT NOT NULL,
-  volume FLOAT DEFAULT 1.0 NOT NULL,
-  criado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
+CREATE OR REPLACE FUNCTION private.eh_membro_campanha(p_campanha_id INTEGER)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT private.eh_mestre_campanha(p_campanha_id) OR EXISTS (
+    SELECT 1 FROM public.campanha_personagens
+    WHERE campanha_id = p_campanha_id AND usuario_id = private.current_user_id()
+  );
+$$;
 
--- ==============================================================================
--- ROW LEVEL SECURITY (RLS) & POLICIES
--- ==============================================================================
+CREATE OR REPLACE FUNCTION private.campanha_da_cena(p_cena_id INTEGER)
+RETURNS INTEGER LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT campanha_id FROM public.mesa_cenas WHERE id = p_cena_id;
+$$;
 
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+CREATE OR REPLACE FUNCTION private.cena_da_ficha(p_ficha_id INTEGER)
+RETURNS INTEGER LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT c.id FROM public.campanha_personagens cp
+  JOIN public.mesa_cenas c ON c.campanha_id = cp.campanha_id
+  WHERE cp.personagem_id = p_ficha_id LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION private.criar_perfil_auth()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  v_usuario TEXT;
+  v_nome TEXT;
+  v_sufixo TEXT := substr(replace(new.id::text, '-', ''), 1, 6);
+BEGIN
+  v_usuario := lower(coalesce(nullif(new.raw_user_meta_data ->> 'usuario', ''), split_part(new.email, '@', 1)));
+  v_usuario := trim(both '_' from regexp_replace(v_usuario, '[^a-z0-9_]', '_', 'g'));
+  IF length(v_usuario) < 3 THEN v_usuario := 'user_' || v_sufixo; END IF;
+  v_usuario := left(v_usuario, 20);
+  IF EXISTS (SELECT 1 FROM public.usuarios WHERE nome_usuario = v_usuario AND auth_id <> new.id) THEN
+    v_usuario := left(v_usuario, 13) || '_' || v_sufixo;
+  END IF;
+  v_nome := coalesce(nullif(new.raw_user_meta_data ->> 'nome', ''), v_usuario);
+  INSERT INTO public.usuarios (auth_id, nome_usuario, nome_exibicao)
+  VALUES (new.id, v_usuario, v_nome)
+  ON CONFLICT (auth_id) DO UPDATE SET nome_exibicao = excluded.nome_exibicao, atualizado_em = now();
+  RETURN new;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION private.criar_perfil_auth();
+
+CREATE OR REPLACE FUNCTION private.gerar_lembretes_sessoes()
+RETURNS INTEGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_uid INTEGER := private.current_user_id(); v_qtd INTEGER := 0;
+BEGIN
+  IF (SELECT auth.uid()) IS NULL OR v_uid IS NULL THEN
+    RAISE EXCEPTION 'Apenas usuários autenticados com perfil podem gerar lembretes.';
+  END IF;
+  WITH minhas_sessoes AS (
+    SELECT DISTINCT s.id, s.titulo, s.data_agendada, s.campanha_id, c.titulo AS campanha_titulo
+    FROM public.sessoes s JOIN public.campanhas c ON c.id = s.campanha_id
+    LEFT JOIN public.campanha_personagens cp ON cp.campanha_id = s.campanha_id
+    WHERE s.data_agendada IS NOT NULL AND s.data_agendada >= now()
+      AND s.data_agendada <= now() + interval '48 hours'
+      AND coalesce(s.status, 'agendada') <> 'cancelada'
+      AND (c.mestre_id = v_uid OR cp.usuario_id = v_uid)
+  ), inseridas AS (
+    INSERT INTO public.notificacoes (usuario_id, tipo, titulo, mensagem, campanha_id, sessao_id)
+    SELECT v_uid, 'sessao_proxima', coalesce(ms.titulo, 'Sessão') || ' está chegando',
+      coalesce(ms.campanha_titulo, 'Sua campanha') || ' — ' || to_char(ms.data_agendada, 'DD/MM "às" HH24:MI'), ms.campanha_id, ms.id
+    FROM minhas_sessoes ms
+    ON CONFLICT (usuario_id, tipo, sessao_id) WHERE (tipo = 'sessao_proxima') DO NOTHING
+    RETURNING 1
+  ) SELECT count(*) INTO v_qtd FROM inseridas;
+  RETURN v_qtd;
+END;
+$$;
+
+-- Wrappers invoker ficam disponíveis apenas para as chamadas necessárias do app;
+-- a elevação de privilégio permanece isolada no schema private.
+CREATE OR REPLACE FUNCTION public.current_user_id()
+RETURNS INTEGER LANGUAGE sql STABLE SET search_path = '' AS $$
+  SELECT private.current_user_id();
+$$;
+CREATE OR REPLACE FUNCTION public.eh_mestre_campanha(p_campanha_id INTEGER)
+RETURNS BOOLEAN LANGUAGE sql STABLE SET search_path = '' AS $$
+  SELECT private.eh_mestre_campanha(p_campanha_id);
+$$;
+CREATE OR REPLACE FUNCTION public.eh_membro_campanha(p_campanha_id INTEGER)
+RETURNS BOOLEAN LANGUAGE sql STABLE SET search_path = '' AS $$
+  SELECT private.eh_membro_campanha(p_campanha_id);
+$$;
+CREATE OR REPLACE FUNCTION public.campanha_da_cena(p_cena_id INTEGER)
+RETURNS INTEGER LANGUAGE sql STABLE SET search_path = '' AS $$
+  SELECT private.campanha_da_cena(p_cena_id);
+$$;
+CREATE OR REPLACE FUNCTION public.cena_da_ficha(p_ficha_id INTEGER)
+RETURNS INTEGER LANGUAGE sql STABLE SET search_path = '' AS $$
+  SELECT private.cena_da_ficha(p_ficha_id);
+$$;
+CREATE OR REPLACE FUNCTION public.gerar_lembretes_sessoes()
+RETURNS INTEGER LANGUAGE sql SET search_path = '' AS $$
+  SELECT private.gerar_lembretes_sessoes();
+$$;
+
+REVOKE ALL ON FUNCTION private.current_user_id() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION private.eh_mestre_campanha(INTEGER) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION private.eh_membro_campanha(INTEGER) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION private.campanha_da_cena(INTEGER) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION private.cena_da_ficha(INTEGER) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION private.criar_perfil_auth() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION private.gerar_lembretes_sessoes() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.current_user_id() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.eh_mestre_campanha(INTEGER) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.eh_membro_campanha(INTEGER) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.campanha_da_cena(INTEGER) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.cena_da_ficha(INTEGER) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.gerar_lembretes_sessoes() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION private.current_user_id() TO authenticated;
+GRANT EXECUTE ON FUNCTION private.eh_mestre_campanha(INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION private.eh_membro_campanha(INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION private.campanha_da_cena(INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION private.cena_da_ficha(INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION private.gerar_lembretes_sessoes() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.current_user_id() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.eh_mestre_campanha(INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.eh_membro_campanha(INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.campanha_da_cena(INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.cena_da_ficha(INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.gerar_lembretes_sessoes() TO authenticated;
+
+-- Revoga funções SECURITY DEFINER antigas que não participam do fluxo atual.
+REVOKE ALL ON FUNCTION public.adicionar_mestre_como_membro() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.is_campanha_member(UUID) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.is_membro_campanha(INTEGER) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.is_membro_de_sessao(INTEGER) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.is_mestre_campanha(INTEGER) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.is_mestre_de_personagem(INTEGER) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.is_mestre_de_sessao(INTEGER) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.is_mestre_ou_membro_de_personagem(INTEGER) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.notificar_membros_campanha(INTEGER, INTEGER, TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.trg_notificar_campanha_personagem() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.trg_notificar_sessao_nova() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.trg_notificar_sessao_remarcada() FROM PUBLIC, anon, authenticated;
+
+-- RLS somente para autenticados; autorização sempre deriva de auth.uid().
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN SELECT schemaname, tablename, policyname FROM pg_policies WHERE schemaname = 'public' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', r.policyname, r.schemaname, r.tablename);
+  END LOOP;
+END
+$$;
+
+ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.campanhas ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.campanha_membros ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.campanha_personagens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.personagens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sessoes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.fichas ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.cenas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sessao_participantes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mesa_cenas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mesa_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mesa_paredes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mesa_areas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mesa_chat ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mesa_iniciativa ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mesa_sons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.personagem_acoes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notificacoes ENABLE ROW LEVEL SECURITY;
 
--- Políticas de Profiles (Todos autenticados podem ver perfis, cada um edita o seu)
-CREATE POLICY "Perfis visíveis para todos os autenticados" ON public.profiles
-  FOR SELECT TO authenticated USING (true);
+CREATE POLICY usuarios_select ON public.usuarios FOR SELECT TO authenticated USING (true);
+CREATE POLICY usuarios_insert ON public.usuarios FOR INSERT TO authenticated WITH CHECK (auth_id = (SELECT auth.uid()));
+CREATE POLICY usuarios_update ON public.usuarios FOR UPDATE TO authenticated USING (auth_id = (SELECT auth.uid())) WITH CHECK (auth_id = (SELECT auth.uid()));
+CREATE POLICY usuarios_delete ON public.usuarios FOR DELETE TO authenticated USING (auth_id = (SELECT auth.uid()));
 
-CREATE POLICY "Usuários podem inserir e atualizar seu próprio perfil" ON public.profiles
-  FOR ALL TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+CREATE POLICY campanhas_select ON public.campanhas FOR SELECT TO authenticated USING (public.eh_membro_campanha(id));
+CREATE POLICY campanhas_insert ON public.campanhas FOR INSERT TO authenticated WITH CHECK (mestre_id = public.current_user_id());
+CREATE POLICY campanhas_update ON public.campanhas FOR UPDATE TO authenticated USING (mestre_id = public.current_user_id()) WITH CHECK (mestre_id = public.current_user_id());
+CREATE POLICY campanhas_delete ON public.campanhas FOR DELETE TO authenticated USING (mestre_id = public.current_user_id());
 
--- Políticas de Campanhas (Membros e mestres têm acesso total)
-CREATE POLICY "Campanhas acessíveis por membros e mestres" ON public.campanhas
-  FOR SELECT TO authenticated USING (
-    mestre_id = auth.uid() OR
-    EXISTS (SELECT 1 FROM public.campanha_membros WHERE campanha_id = campanhas.id AND usuario_id = auth.uid())
+CREATE POLICY cp_select ON public.campanha_personagens FOR SELECT TO authenticated USING (public.eh_membro_campanha(campanha_id) OR usuario_id = public.current_user_id());
+CREATE POLICY cp_insert ON public.campanha_personagens FOR INSERT TO authenticated WITH CHECK (public.eh_mestre_campanha(campanha_id));
+CREATE POLICY cp_update ON public.campanha_personagens FOR UPDATE TO authenticated USING (public.eh_mestre_campanha(campanha_id)) WITH CHECK (public.eh_mestre_campanha(campanha_id));
+CREATE POLICY cp_delete ON public.campanha_personagens FOR DELETE TO authenticated USING (public.eh_mestre_campanha(campanha_id) OR usuario_id = public.current_user_id());
+
+CREATE POLICY personagens_select ON public.personagens FOR SELECT TO authenticated USING (usuario_id = public.current_user_id() OR EXISTS (SELECT 1 FROM public.campanha_personagens cp WHERE cp.personagem_id = public.personagens.id AND public.eh_membro_campanha(cp.campanha_id)));
+CREATE POLICY personagens_insert ON public.personagens FOR INSERT TO authenticated WITH CHECK (usuario_id = public.current_user_id());
+CREATE POLICY personagens_update ON public.personagens FOR UPDATE TO authenticated USING (usuario_id = public.current_user_id() OR EXISTS (SELECT 1 FROM public.campanha_personagens cp WHERE cp.personagem_id = public.personagens.id AND public.eh_mestre_campanha(cp.campanha_id))) WITH CHECK (usuario_id = public.current_user_id() OR EXISTS (SELECT 1 FROM public.campanha_personagens cp WHERE cp.personagem_id = public.personagens.id AND public.eh_mestre_campanha(cp.campanha_id)));
+CREATE POLICY personagens_delete ON public.personagens FOR DELETE TO authenticated USING (usuario_id = public.current_user_id() OR EXISTS (SELECT 1 FROM public.campanha_personagens cp WHERE cp.personagem_id = public.personagens.id AND public.eh_mestre_campanha(cp.campanha_id)));
+
+CREATE POLICY sessoes_select ON public.sessoes FOR SELECT TO authenticated USING (public.eh_membro_campanha(campanha_id));
+CREATE POLICY sessoes_insert ON public.sessoes FOR INSERT TO authenticated WITH CHECK (public.eh_mestre_campanha(campanha_id));
+CREATE POLICY sessoes_update ON public.sessoes FOR UPDATE TO authenticated USING (public.eh_mestre_campanha(campanha_id)) WITH CHECK (public.eh_mestre_campanha(campanha_id));
+CREATE POLICY sessoes_delete ON public.sessoes FOR DELETE TO authenticated USING (public.eh_mestre_campanha(campanha_id));
+
+CREATE POLICY participantes_select ON public.sessao_participantes FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.sessoes s WHERE s.id = sessao_id AND public.eh_membro_campanha(s.campanha_id)));
+CREATE POLICY participantes_insert ON public.sessao_participantes FOR INSERT TO authenticated WITH CHECK (usuario_id = public.current_user_id() AND EXISTS (SELECT 1 FROM public.sessoes s WHERE s.id = sessao_id AND public.eh_membro_campanha(s.campanha_id)));
+CREATE POLICY participantes_update ON public.sessao_participantes FOR UPDATE TO authenticated USING (usuario_id = public.current_user_id() OR EXISTS (SELECT 1 FROM public.sessoes s WHERE s.id = sessao_id AND public.eh_mestre_campanha(s.campanha_id))) WITH CHECK (usuario_id = public.current_user_id() OR EXISTS (SELECT 1 FROM public.sessoes s WHERE s.id = sessao_id AND public.eh_mestre_campanha(s.campanha_id)));
+CREATE POLICY participantes_delete ON public.sessao_participantes FOR DELETE TO authenticated USING (usuario_id = public.current_user_id() OR EXISTS (SELECT 1 FROM public.sessoes s WHERE s.id = sessao_id AND public.eh_mestre_campanha(s.campanha_id)));
+
+CREATE POLICY cenas_select ON public.mesa_cenas FOR SELECT TO authenticated USING (public.eh_membro_campanha(campanha_id));
+CREATE POLICY cenas_insert ON public.mesa_cenas FOR INSERT TO authenticated WITH CHECK (public.eh_mestre_campanha(campanha_id));
+CREATE POLICY cenas_update ON public.mesa_cenas FOR UPDATE TO authenticated USING (public.eh_mestre_campanha(campanha_id)) WITH CHECK (public.eh_mestre_campanha(campanha_id));
+CREATE POLICY cenas_delete ON public.mesa_cenas FOR DELETE TO authenticated USING (public.eh_mestre_campanha(campanha_id));
+
+CREATE POLICY tokens_select ON public.mesa_tokens FOR SELECT TO authenticated USING (public.eh_membro_campanha(public.campanha_da_cena(cena_id)));
+CREATE POLICY tokens_insert ON public.mesa_tokens FOR INSERT TO authenticated WITH CHECK (public.eh_mestre_campanha(public.campanha_da_cena(cena_id)) OR EXISTS (SELECT 1 FROM public.personagens p WHERE p.id = coalesce(ficha_id, personagem_id) AND p.usuario_id = public.current_user_id()));
+CREATE POLICY tokens_update ON public.mesa_tokens FOR UPDATE TO authenticated USING (public.eh_mestre_campanha(public.campanha_da_cena(cena_id)) OR EXISTS (SELECT 1 FROM public.personagens p WHERE p.id = coalesce(ficha_id, personagem_id) AND p.usuario_id = public.current_user_id())) WITH CHECK (public.eh_mestre_campanha(public.campanha_da_cena(cena_id)) OR EXISTS (SELECT 1 FROM public.personagens p WHERE p.id = coalesce(ficha_id, personagem_id) AND p.usuario_id = public.current_user_id()));
+CREATE POLICY tokens_delete ON public.mesa_tokens FOR DELETE TO authenticated USING (public.eh_mestre_campanha(public.campanha_da_cena(cena_id)) OR EXISTS (SELECT 1 FROM public.personagens p WHERE p.id = coalesce(ficha_id, personagem_id) AND p.usuario_id = public.current_user_id()));
+
+CREATE POLICY paredes_select ON public.mesa_paredes FOR SELECT TO authenticated USING (public.eh_membro_campanha(public.campanha_da_cena(cena_id)));
+CREATE POLICY paredes_insert ON public.mesa_paredes FOR INSERT TO authenticated WITH CHECK (public.eh_mestre_campanha(public.campanha_da_cena(cena_id)));
+CREATE POLICY paredes_update ON public.mesa_paredes FOR UPDATE TO authenticated USING (public.eh_mestre_campanha(public.campanha_da_cena(cena_id))) WITH CHECK (public.eh_mestre_campanha(public.campanha_da_cena(cena_id)));
+CREATE POLICY paredes_delete ON public.mesa_paredes FOR DELETE TO authenticated USING (public.eh_mestre_campanha(public.campanha_da_cena(cena_id)));
+CREATE POLICY areas_select ON public.mesa_areas FOR SELECT TO authenticated USING (public.eh_membro_campanha(public.campanha_da_cena(cena_id)));
+CREATE POLICY areas_insert ON public.mesa_areas FOR INSERT TO authenticated WITH CHECK (public.eh_mestre_campanha(public.campanha_da_cena(cena_id)));
+CREATE POLICY areas_update ON public.mesa_areas FOR UPDATE TO authenticated USING (public.eh_mestre_campanha(public.campanha_da_cena(cena_id))) WITH CHECK (public.eh_mestre_campanha(public.campanha_da_cena(cena_id)));
+CREATE POLICY areas_delete ON public.mesa_areas FOR DELETE TO authenticated USING (public.eh_mestre_campanha(public.campanha_da_cena(cena_id)));
+
+CREATE POLICY chat_select ON public.mesa_chat FOR SELECT TO authenticated USING (public.eh_membro_campanha(public.campanha_da_cena(cena_id)));
+CREATE POLICY chat_insert ON public.mesa_chat FOR INSERT TO authenticated WITH CHECK (usuario_id = public.current_user_id() AND public.eh_membro_campanha(public.campanha_da_cena(cena_id)));
+CREATE POLICY chat_delete ON public.mesa_chat FOR DELETE TO authenticated USING (usuario_id = public.current_user_id() OR public.eh_mestre_campanha(public.campanha_da_cena(cena_id)));
+CREATE POLICY iniciativa_select ON public.mesa_iniciativa FOR SELECT TO authenticated USING (public.eh_membro_campanha(public.campanha_da_cena(cena_id)));
+CREATE POLICY iniciativa_insert ON public.mesa_iniciativa FOR INSERT TO authenticated WITH CHECK (criado_por = public.current_user_id() AND public.eh_membro_campanha(public.campanha_da_cena(cena_id)));
+CREATE POLICY iniciativa_delete ON public.mesa_iniciativa FOR DELETE TO authenticated USING (criado_por = public.current_user_id() OR public.eh_mestre_campanha(public.campanha_da_cena(cena_id)));
+
+CREATE POLICY sons_select ON public.mesa_sons FOR SELECT TO authenticated USING (public.eh_membro_campanha(campanha_id));
+CREATE POLICY sons_insert ON public.mesa_sons FOR INSERT TO authenticated WITH CHECK (public.eh_mestre_campanha(campanha_id));
+CREATE POLICY sons_update ON public.mesa_sons FOR UPDATE TO authenticated USING (public.eh_mestre_campanha(campanha_id)) WITH CHECK (public.eh_mestre_campanha(campanha_id));
+CREATE POLICY sons_delete ON public.mesa_sons FOR DELETE TO authenticated USING (public.eh_mestre_campanha(campanha_id));
+CREATE POLICY acoes_owner_all ON public.personagem_acoes FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM public.personagens p WHERE p.id = personagem_id AND p.usuario_id = public.current_user_id())) WITH CHECK (EXISTS (SELECT 1 FROM public.personagens p WHERE p.id = personagem_id AND p.usuario_id = public.current_user_id()));
+CREATE POLICY notificacoes_select ON public.notificacoes FOR SELECT TO authenticated USING (usuario_id = public.current_user_id());
+CREATE POLICY notificacoes_update ON public.notificacoes FOR UPDATE TO authenticated USING (usuario_id = public.current_user_id()) WITH CHECK (usuario_id = public.current_user_id());
+CREATE POLICY notificacoes_delete ON public.notificacoes FOR DELETE TO authenticated USING (usuario_id = public.current_user_id());
+CREATE POLICY notificacoes_insert ON public.notificacoes FOR INSERT TO authenticated WITH CHECK (usuario_id = public.current_user_id());
+
+-- Storage privado de sons; o primeiro segmento do caminho é o ID inteiro da campanha.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES
+  ('mesa-imagens', 'mesa-imagens', true, 5242880, ARRAY['image/jpeg','image/png','image/webp','image/gif']::text[]),
+  ('mesa-mapas', 'mesa-mapas', true, 20971520, ARRAY['image/jpeg','image/png','image/webp','image/gif']::text[]),
+  ('mesa-sons', 'mesa-sons', false, 26214400, ARRAY['audio/*']::text[])
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+UPDATE storage.buckets
+SET file_size_limit = CASE id
+  WHEN 'mesa-sons' THEN 26214400
+  WHEN 'mesa-mapas' THEN 20971520
+  WHEN 'leo-mapas' THEN 20971520
+  WHEN 'mesa-imagens' THEN 5242880
+  WHEN 'leo-retratos' THEN 5242880
+END,
+allowed_mime_types = CASE
+  WHEN id IN ('mesa-mapas', 'leo-mapas') THEN ARRAY['image/jpeg','image/png','image/webp','image/gif']::text[]
+  WHEN id IN ('mesa-imagens', 'leo-retratos') THEN ARRAY['image/jpeg','image/png','image/webp','image/gif']::text[]
+  WHEN id = 'mesa-sons' THEN ARRAY['audio/*']::text[]
+END
+WHERE id IN ('mesa-imagens','mesa-mapas','mesa-sons','leo-mapas','leo-retratos');
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN SELECT policyname FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects'
+    AND (coalesce(qual, '') ILIKE '%mesa-sons%' OR coalesce(with_check, '') ILIKE '%mesa-sons%') LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON storage.objects', r.policyname);
+  END LOOP;
+END
+$$;
+CREATE POLICY mesa_sons_storage_select ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'mesa-sons' AND (storage.foldername(name))[1] ~ '^[0-9]+$' AND public.eh_membro_campanha(((storage.foldername(name))[1])::INTEGER));
+CREATE POLICY mesa_sons_storage_insert ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'mesa-sons' AND (storage.foldername(name))[1] ~ '^[0-9]+$' AND public.eh_mestre_campanha(((storage.foldername(name))[1])::INTEGER));
+CREATE POLICY mesa_sons_storage_update ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'mesa-sons' AND (storage.foldername(name))[1] ~ '^[0-9]+$' AND public.eh_mestre_campanha(((storage.foldername(name))[1])::INTEGER))
+  WITH CHECK (bucket_id = 'mesa-sons' AND (storage.foldername(name))[1] ~ '^[0-9]+$' AND public.eh_mestre_campanha(((storage.foldername(name))[1])::INTEGER));
+CREATE POLICY mesa_sons_storage_delete ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'mesa-sons' AND (storage.foldername(name))[1] ~ '^[0-9]+$' AND public.eh_mestre_campanha(((storage.foldername(name))[1])::INTEGER));
+
+-- Buckets públicos para leitura, mas nunca para escrita anônima.
+DO $cleanup_storage$DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT policyname
+    FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND (
+        coalesce(qual, '') ~ $bucket$(mesa-imagens|mesa-mapas|leo-mapas|leo-retratos)$bucket$
+        OR coalesce(with_check, '') ~ $bucket$(mesa-imagens|mesa-mapas|leo-mapas|leo-retratos)$bucket$
+      )
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON storage.objects', r.policyname);
+  END LOOP;
+END$cleanup_storage$;
+
+CREATE POLICY mesa_imagens_storage_select ON storage.objects FOR SELECT TO public
+  USING (bucket_id = 'mesa-imagens');
+CREATE POLICY mesa_imagens_storage_insert ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (
+    bucket_id = 'mesa-imagens'
+    AND (storage.foldername(name))[2] ~ '^[0-9]+$'
+    AND public.eh_membro_campanha(((storage.foldername(name))[2])::INTEGER)
+  );
+CREATE POLICY mesa_imagens_storage_update ON storage.objects FOR UPDATE TO authenticated
+  USING (
+    bucket_id = 'mesa-imagens'
+    AND (storage.foldername(name))[2] ~ '^[0-9]+$'
+    AND (owner_id = (SELECT auth.uid()::text) OR public.eh_mestre_campanha(((storage.foldername(name))[2])::INTEGER))
+  )
+  WITH CHECK (bucket_id = 'mesa-imagens');
+CREATE POLICY mesa_imagens_storage_delete ON storage.objects FOR DELETE TO authenticated
+  USING (
+    bucket_id = 'mesa-imagens'
+    AND (storage.foldername(name))[2] ~ '^[0-9]+$'
+    AND (owner_id = (SELECT auth.uid()::text) OR public.eh_mestre_campanha(((storage.foldername(name))[2])::INTEGER))
   );
 
-CREATE POLICY "Mestres podem criar campanhas" ON public.campanhas
-  FOR INSERT TO authenticated WITH CHECK (mestre_id = auth.uid());
+CREATE POLICY mesa_mapas_storage_select ON storage.objects FOR SELECT TO public
+  USING (bucket_id = 'mesa-mapas');
+CREATE POLICY mesa_mapas_storage_insert ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (
+    bucket_id = 'mesa-mapas'
+    AND (storage.foldername(name))[2] ~ '^[0-9]+$'
+    AND public.eh_mestre_campanha(((storage.foldername(name))[2])::INTEGER)
+  );
+CREATE POLICY mesa_mapas_storage_update ON storage.objects FOR UPDATE TO authenticated
+  USING (
+    bucket_id = 'mesa-mapas'
+    AND (storage.foldername(name))[2] ~ '^[0-9]+$'
+    AND public.eh_mestre_campanha(((storage.foldername(name))[2])::INTEGER)
+  )
+  WITH CHECK (bucket_id = 'mesa-mapas');
+CREATE POLICY mesa_mapas_storage_delete ON storage.objects FOR DELETE TO authenticated
+  USING (
+    bucket_id = 'mesa-mapas'
+    AND (storage.foldername(name))[2] ~ '^[0-9]+$'
+    AND public.eh_mestre_campanha(((storage.foldername(name))[2])::INTEGER)
+  );
 
-CREATE POLICY "Mestre pode atualizar e deletar sua campanha" ON public.campanhas
-  FOR ALL TO authenticated USING (mestre_id = auth.uid());
+CREATE POLICY leo_mapas_storage_select ON storage.objects FOR SELECT TO public
+  USING (bucket_id = 'leo-mapas');
+CREATE POLICY leo_mapas_storage_write ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'leo-mapas');
+CREATE POLICY leo_mapas_storage_delete ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'leo-mapas' AND owner_id = (SELECT auth.uid()::text));
 
--- Políticas de Campanha Membros
-CREATE POLICY "Membros visíveis para quem está na campanha" ON public.campanha_membros
-  FOR SELECT TO authenticated USING (true);
+CREATE POLICY leo_retratos_storage_select ON storage.objects FOR SELECT TO public
+  USING (bucket_id = 'leo-retratos');
+CREATE POLICY leo_retratos_storage_write ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'leo-retratos');
+CREATE POLICY leo_retratos_storage_update ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'leo-retratos' AND owner_id = (SELECT auth.uid()::text))
+  WITH CHECK (bucket_id = 'leo-retratos');
+CREATE POLICY leo_retratos_storage_delete ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'leo-retratos' AND owner_id = (SELECT auth.uid()::text));
 
-CREATE POLICY "Mestre e próprio jogador gerenciam membros" ON public.campanha_membros
-  FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
--- Políticas de Sessões
-CREATE POLICY "Sessões visíveis para membros da campanha" ON public.sessoes
-  FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
--- Políticas de Fichas
-CREATE POLICY "Fichas visíveis e gerenciáveis por jogadores e mestres" ON public.fichas
-  FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
--- Políticas de Cenas, Tokens, Chat, Iniciativa, Sons (Mesa Virtual)
-CREATE POLICY "Cenas acessíveis para autenticados" ON public.cenas
-  FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
-CREATE POLICY "Tokens acessíveis para autenticados" ON public.mesa_tokens
-  FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
-CREATE POLICY "Chat acessível para autenticados" ON public.mesa_chat
-  FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
-CREATE POLICY "Iniciativa acessível para autenticados" ON public.mesa_iniciativa
-  FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
-CREATE POLICY "Sons acessíveis para autenticados" ON public.mesa_sons
-  FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
--- ==============================================================================
--- REALTIME (HABILITAR PUBLICACAO EM TEMPO REAL PARA AS TABELAS)
--- ==============================================================================
-DO $$
+-- Limite de mensagens para evitar spam/abuso sem depender apenas do cliente.
+CREATE INDEX IF NOT EXISTS idx_chat_usuario_tempo ON public.mesa_chat(usuario_id, criado_em DESC);
+CREATE OR REPLACE FUNCTION private.limitar_chat_campanha()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, private
+AS $$
+DECLARE
+  v_usuario_id INTEGER;
+  v_qtd INTEGER;
 BEGIN
-  BEGIN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.campanhas;
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.sessoes;
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.cenas;
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.fichas;
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.mesa_tokens;
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.mesa_chat;
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.mesa_iniciativa;
-  EXCEPTION
-    WHEN duplicate_object THEN NULL;
-  END;
-END $$;
+  v_usuario_id := private.current_user_id();
+  IF v_usuario_id IS NULL OR NEW.usuario_id IS DISTINCT FROM v_usuario_id THEN
+    RAISE EXCEPTION 'Usuário autenticado inválido para esta mensagem.' USING ERRCODE = '42501';
+  END IF;
 
--- ==============================================================================
--- PERFIL DE CONTA + NOTIFICAÇÕES (set/2026)
--- Já aplicado no projeto rpg-campanhas via migrations:
---   perfil_campos_e_notificacoes
---   notificacoes_triggers
---   lembretes_sessao_e_realtime
---   campanha_personagens_permite_membro_sem_personagem
--- ==============================================================================
+  PERFORM pg_advisory_xact_lock(781234, v_usuario_id);
+  SELECT count(*) INTO v_qtd
+  FROM public.mesa_chat
+  WHERE usuario_id = v_usuario_id
+    AND criado_em > now() - interval '1 minute';
 
--- Campos novos de perfil
-ALTER TABLE public.usuarios
-  ADD COLUMN IF NOT EXISTS bio TEXT,
-  ADD COLUMN IF NOT EXISTS titulo VARCHAR(60),
-  ADD COLUMN IF NOT EXISTS cor_destaque VARCHAR(9) DEFAULT '#c8aa6e',
-  ADD COLUMN IF NOT EXISTS preferencias JSONB DEFAULT '{}'::jsonb NOT NULL,
-  ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMPTZ DEFAULT NOW();
+  IF v_qtd >= 60 THEN
+    RAISE EXCEPTION 'Limite de mensagens atingido. Tente novamente em instantes.' USING ERRCODE = 'P0001';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.limitar_chat_campanha() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS mesa_chat_rate_limit ON public.mesa_chat;
+CREATE TRIGGER mesa_chat_rate_limit
+  BEFORE INSERT ON public.mesa_chat
+  FOR EACH ROW EXECUTE FUNCTION private.limitar_chat_campanha();
 
--- Um jogador pode ser membro da campanha antes de ter personagem
-ALTER TABLE public.campanha_personagens ALTER COLUMN personagem_id DROP NOT NULL;
+DO $$
+DECLARE nome_tabela TEXT;
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    FOREACH nome_tabela IN ARRAY ARRAY['public.campanhas','public.campanha_personagens','public.personagens','public.sessoes','public.sessao_participantes','public.mesa_cenas','public.mesa_tokens','public.mesa_paredes','public.mesa_areas','public.mesa_chat','public.mesa_iniciativa','public.mesa_sons','public.notificacoes'] LOOP
+      BEGIN
+        EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE %s', nome_tabela);
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END;
+    END LOOP;
+  END IF;
+END
+$$;
 
--- Tabela de notificações
-CREATE TABLE IF NOT EXISTS public.notificacoes (
-  id SERIAL PRIMARY KEY,
-  usuario_id INT NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-  tipo VARCHAR(40) NOT NULL,   -- convite_campanha | personagem_adicionado | nova_sessao | sessao_remarcada | sessao_proxima
-  titulo TEXT NOT NULL,
-  mensagem TEXT,
-  campanha_id INT REFERENCES public.campanhas(id) ON DELETE CASCADE,
-  sessao_id INT REFERENCES public.sessoes(id) ON DELETE CASCADE,
-  personagem_id INT REFERENCES public.personagens(id) ON DELETE CASCADE,
-  ator_id INT REFERENCES public.usuarios(id) ON DELETE SET NULL,
-  lida BOOLEAN NOT NULL DEFAULT FALSE,
-  criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_notificacoes_usuario ON public.notificacoes(usuario_id, criado_em DESC);
-CREATE INDEX IF NOT EXISTS idx_notificacoes_nao_lidas ON public.notificacoes(usuario_id) WHERE lida = FALSE;
-CREATE UNIQUE INDEX IF NOT EXISTS uniq_notificacao_sessao_proxima
-  ON public.notificacoes(usuario_id, tipo, sessao_id) WHERE tipo = 'sessao_proxima';
-
-ALTER TABLE public.notificacoes ENABLE ROW LEVEL SECURITY;
--- SELECT/UPDATE/DELETE restritos a usuario_id = current_user_id(); INSERT liberado (triggers escrevem para terceiros).
-
--- Geradores automáticos (SECURITY DEFINER):
---   notificar_membros_campanha(...)          helper
---   trg_notificar_campanha_personagem()      AFTER INSERT ON campanha_personagens
---   trg_notificar_sessao_nova()              AFTER INSERT ON sessoes
---   trg_notificar_sessao_remarcada()         AFTER UPDATE ON sessoes (data_agendada)
---   gerar_lembretes_sessoes()                RPC chamado pelo hub (sessões nas próximas 48h)
-
--- Realtime
--- ALTER PUBLICATION supabase_realtime ADD TABLE public.notificacoes;
+COMMIT;
