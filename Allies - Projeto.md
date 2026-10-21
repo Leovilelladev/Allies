@@ -14,7 +14,7 @@ Site para hospedar campanhas de RPG, fichas de personagem e informações de ses
 - React 19 + Vite
 - Konva / React-Konva para a Mesa Virtual
 - [Supabase](https://supabase.com) para autenticação, banco de dados e Realtime
-- **Hospedado na Vercel: https://allies-nine.vercel.app** — build automatizado com Vite (`npm run build`)
+- **Hospedado na Vercel: https://www.alliesrpg.com.br** — build automatizado com Vite (`npm run build`)
 
 ## Autenticação
 - Login com **usuário + senha** (sem e-mail visível)
@@ -58,7 +58,7 @@ Nova área expandindo o Allies: mapa de batalha com tokens, iniciativa, chat com
 
 **Como testar localmente:** abre `index.html` (site principal) pelo Live Preview/Simple Browser do VS Code — não o `mesa-virtual-src` direto — loga, entra numa campanha, clica em "Mesa Virtual". Sempre que mexer no código da Mesa Virtual, precisa rodar `npm run build` dentro de `mesa-virtual-src` de novo e copiar o conteúdo de `dist/` por cima da pasta `mesa/` (index.html + assets) pra refletir no site principal — rodar só `npm run dev` não atualiza essa cópia.
 
-**Deploy:** a Vercel está ligada ao repositório GitHub (Leovilelladev/Allies, branch `main`) — todo `git push` pra `main` republica o site automaticamente em https://allies-nine.vercel.app em menos de um minuto, sem precisar mexer em nada no painel da Vercel.
+**Deploy:** a Vercel está ligada ao repositório GitHub (Leovilelladev/Allies, branch `main`) — todo `git push` pra `main` republica o site automaticamente em https://www.alliesrpg.com.br em menos de um minuto, sem precisar mexer em nada no painel da Vercel.
 
 ## Funcionalidades do site principal
 - [x] Cadastro/login por usuário e senha
@@ -67,7 +67,7 @@ Nova área expandindo o Allies: mapa de batalha com tokens, iniciativa, chat com
 - [x] Convidar jogador por nome de usuário
 - [x] Sair de uma campanha (jogador, não mestre)
 - [x] Ficha de personagem completa de D&D 5e, editável, com cálculos automáticos
-- [x] Hospedar (Vercel) — https://allies-nine.vercel.app
+- [x] Hospedar (Vercel) — https://www.alliesrpg.com.br
 
 ## Identidade visual (redesign — Claude Design)
 
