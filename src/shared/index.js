@@ -15,6 +15,8 @@ export {
   ACOES_PRESETS,
 } from './actionEngine';
 export { redimensionarImagem } from './imageUtils';
+export { UPLOAD_LIMITES, validarArquivoUpload, validarImagemUpload } from './uploadPolicy';
+export { criarLimitadorJanela } from './rateLimit';
 
 
 

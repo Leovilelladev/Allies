@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { sb } from '../shared/supabaseClient';
+import { sameId } from '../shared/ids';
 import { useToast } from '../shared/Toast';
 import { useConfirm } from '../shared/ModalConfirmar';
 import Avatar from '../shared/Avatar';
@@ -279,7 +280,7 @@ export default function Home({
   const notificacoesVisiveis = useMemo(() => {
     const dispensados = new Set(lembretesDispensados());
     return notificacoes.filter((n) => {
-      if (n.tipo === 'sessao_proxima' && dispensados.has(Number(n.sessao_id))) return false;
+      if (n.tipo === 'sessao_proxima' && dispensados.has(String(n.sessao_id))) return false;
       const chave = metaNotificacao(n.tipo).prefChave;
       return !chave || prefsNotif[chave] !== false;
     });
@@ -350,21 +351,20 @@ export default function Home({
   // 2.3 Perfis de usuário (próprio e de outros jogadores)
   const abrirPerfil = useCallback(
     async (id) => {
-      const alvo = Number(id);
-      if (!alvo) return;
+      if (!id) return;
 
       setPainelNotif(false);
       setMenuConfig(false);
       setView('perfil');
 
-      if (alvo === Number(usuarioAtual?.id) && meuPerfil) {
+      if (sameId(id, usuarioAtual?.id) && meuPerfil) {
         setPerfilVisto(meuPerfil);
         return;
       }
 
       setPerfilVisto(null);
       try {
-        const p = await carregarPerfil(alvo);
+        const p = await carregarPerfil(id);
         setPerfilVisto(p);
       } catch (err) {
         toast('Não foi possível abrir este perfil: ' + err.message, 'erro');
@@ -388,7 +388,7 @@ export default function Home({
         cor_destaque: atualizado.cor_destaque,
       },
     }));
-    if (Number(perfilVisto?.id) === Number(atualizado.id)) setPerfilVisto(atualizado);
+    if (sameId(perfilVisto?.id, atualizado.id)) setPerfilVisto(atualizado);
   };
 
   // 3. Abrir Detalhes de Campanha
@@ -471,7 +471,7 @@ export default function Home({
       descricao: dados.descricao || '',
       visibilidade: dados.visibilidade || 'publica',
       imagem_capa_url: dados.imagem_capa_url || null,
-      mestre_id: Number(usuarioAtual.id),
+      mestre_id: usuarioAtual.id,
     };
 
     if (dados.id) {
@@ -562,7 +562,7 @@ export default function Home({
       .from('campanha_personagens')
       .delete()
       .eq('campanha_id', campanhaAtual.id)
-      .eq('usuario_id', Number(usuarioAtual.id));
+      .eq('usuario_id', usuarioAtual.id);
 
     if (error) {
       toast('Erro ao sair da campanha: ' + error.message, 'erro');
@@ -611,7 +611,7 @@ export default function Home({
     }
 
     const payload = {
-      campanha_id: Number(cId),
+      campanha_id: cId,
       titulo: dados.titulo,
       descricao: dados.descricao || '',
       data_agendada: dados.data_agendada,
@@ -671,9 +671,9 @@ export default function Home({
       .from('sessao_participantes')
       .upsert({
         sessao_id: sessaoId,
-        usuario_id: Number(usuarioAtual.id),
+        usuario_id: usuarioAtual.id,
         presente: novoStatus,
-      });
+      }, { onConflict: 'sessao_id,usuario_id' });
 
     if (error) {
       toast('Erro ao atualizar presença: ' + error.message, 'erro');
@@ -689,7 +689,8 @@ export default function Home({
     const nomePersonagem = payload.nome || 'Personagem';
     const cId = payload.campanhaId || campanhaAtual?.id || null;
     const dadosIniciais = payload.dadosIniciais || {};
-    const uId = Number(usuarioAtual?.id) || 1;
+    const uId = usuarioAtual?.id;
+    if (!uId) return;
 
     const dbPayload = {
       usuario_id: uId,
@@ -744,7 +745,7 @@ export default function Home({
     if (cId && novoPers) {
       try {
         await sb.from('campanha_personagens').insert({
-          campanha_id: Number(cId),
+          campanha_id: cId,
           usuario_id: uId,
           personagem_id: novoPers.id,
         });
@@ -1188,7 +1189,7 @@ export default function Home({
             {view === 'perfil' && (
               <PerfilView
                 perfil={perfilVisto}
-                ehProprio={Number(perfilVisto?.id) === Number(usuarioAtual?.id)}
+                ehProprio={sameId(perfilVisto?.id, usuarioAtual?.id)}
                 usuarioAtual={usuarioAtual}
                 campanhas={campanhas}
                 todasFichas={todasFichas}

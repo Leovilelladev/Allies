@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { RETRATOS_CLASSES, obterRetratoPorClasse, redimensionarImagem } from '../../shared';
+import { RETRATOS_CLASSES, obterRetratoPorClasse, redimensionarImagem, useToast, validarImagemUpload } from '../../shared';
 
 const CLASSES_DD = [
   'Guerreiro',
@@ -66,6 +66,7 @@ const ALINHAMENTOS_DD = [
 ];
 
 export default function ModalNovaFicha({ campanhas = [], campanhaPadraoId, onCriar, onCancelar }) {
+  const toast = useToast();
   const [nome, setNome] = useState('');
   const [campanhaId, setCampanhaId] = useState(campanhaPadraoId || (campanhas[0]?.id || ''));
   const [classe, setClasse] = useState('Guerreiro');
@@ -92,11 +93,14 @@ export default function ModalNovaFicha({ campanhas = [], campanhaPadraoId, onCri
     const file = e.target.files?.[0];
     if (file) {
       try {
+        validarImagemUpload(file);
         const dataUrl = await redimensionarImagem(file, 500, 500, 0.88);
         setAvatarUrl(dataUrl);
         setCustomUpload(true);
       } catch (err) {
-        console.error('Erro ao redimensionar avatar:', err);
+        toast(err.message || 'Não foi possível processar o retrato.', 'erro');
+      } finally {
+        e.target.value = '';
       }
     }
   };

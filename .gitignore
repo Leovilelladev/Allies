@@ -7,3 +7,4 @@ mesa-virtual-src/dist/
 *.log
 .env
 .env*.local
+!.env.example

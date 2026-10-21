@@ -2,9 +2,9 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { sb, ToastProvider, ConfirmProvider } from './shared';
 import { Login } from './login';
 import { Astra_restaurarSessao } from './login/Astra_auth';
-import { Home } from './home';
 
 const Mesa = lazy(() => import('./mesa/Mesa'));
+const Home = lazy(() => import('./home/Home'));
 
 import './styles/global.css';
 import './styles/hub.css';
@@ -39,10 +39,9 @@ export default function App() {
       try {
         const usuario = await Astra_restaurarSessao(sb);
         if (usuario) {
-          localStorage.setItem('allies_usuario', JSON.stringify(usuario));
           setUsuarioAtual(usuario);
         } else {
-          localStorage.removeItem('allies_usuario');
+          await sb.auth.signOut().catch(() => {});
         }
       } catch (err) {
         console.warn('Erro ao restaurar sessão:', err);
@@ -80,7 +79,6 @@ export default function App() {
     } catch (e) {
       console.warn('Erro no signOut:', e);
     }
-    localStorage.removeItem('allies_usuario');
     setUsuarioAtual(null);
     setTela('hub');
     window.history.replaceState(null, '', window.location.pathname);
@@ -114,12 +112,20 @@ export default function App() {
             />
           </Suspense>
         ) : (
-          <Home
-            usuarioAtual={usuarioAtual}
-            onLogout={handleLogout}
-            onAbrirMesa={handleAbrirMesa}
-            campanhaInicialId={campanhaInicialHub}
-          />
+          <Suspense
+            fallback={
+              <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+                <p style={{ color: 'var(--text-3)' }}>Carregando o hub…</p>
+              </div>
+            }
+          >
+            <Home
+              usuarioAtual={usuarioAtual}
+              onLogout={handleLogout}
+              onAbrirMesa={handleAbrirMesa}
+              campanhaInicialId={campanhaInicialHub}
+            />
+          </Suspense>
         )}
       </ConfirmProvider>
     </ToastProvider>

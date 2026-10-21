@@ -1,7 +1,8 @@
 /**
  * Allies — Perfil da conta (tabela public.usuarios).
  * Campos editáveis: nome_exibicao, titulo, bio, avatar_url, cor_destaque, preferencias.
- * A senha vive no Supabase Auth (login usa <usuario>@allies.local).
+ * A senha vive no Supabase Auth; contas antigas ainda podem usar o identificador
+ * legado, mas contas novas usam e-mail real para confirmação e recuperação.
  */
 import { sb } from './supabaseClient';
 import { PREFS_NOTIFICACAO_PADRAO } from './notificacoes';
@@ -49,7 +50,7 @@ export async function carregarPerfil(id) {
   const { data, error } = await sb
     .from('usuarios')
     .select(CAMPOS_PERFIL)
-    .eq('id', Number(id))
+    .eq('id', id)
     .maybeSingle();
 
   if (error) throw error;
@@ -86,7 +87,7 @@ export async function salvarPerfil(id, campos) {
   const { data, error } = await sb
     .from('usuarios')
     .update(payload)
-    .eq('id', Number(id))
+    .eq('id', id)
     .select(CAMPOS_PERFIL)
     .maybeSingle();
 
@@ -96,16 +97,17 @@ export async function salvarPerfil(id, campos) {
 }
 
 /** Troca a senha no Supabase Auth, revalidando a senha atual antes. */
-export async function alterarSenha(nomeUsuario, senhaAtual, novaSenha) {
-  if (!nomeUsuario) throw new Error('Conta sem nome de usuário vinculado.');
-  if (!novaSenha || novaSenha.length < 6) {
-    throw new Error('A nova senha precisa de pelo menos 6 caracteres.');
+export async function alterarSenha(_nomeUsuario, senhaAtual, novaSenha) {
+  if (!novaSenha || novaSenha.length < 8) {
+    throw new Error('A nova senha precisa de pelo menos 8 caracteres.');
   }
   if (senhaAtual === novaSenha) {
     throw new Error('A nova senha precisa ser diferente da atual.');
   }
 
-  const email = `${String(nomeUsuario).trim().toLowerCase()}@allies.local`;
+  const { data: sessao, error: erroSessao } = await sb.auth.getUser();
+  const email = sessao?.user?.email;
+  if (erroSessao || !email) throw new Error('Sessão expirada. Entre novamente para trocar a senha.');
 
   const { error: erroLogin } = await sb.auth.signInWithPassword({ email, password: senhaAtual });
   if (erroLogin) throw new Error('Senha atual incorreta.');

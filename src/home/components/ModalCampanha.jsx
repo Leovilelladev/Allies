@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { redimensionarImagem, useToast, validarImagemUpload } from '../../shared';
 
 const SISTEMAS_DISPONIVEIS = [
   'D&D 5E',
@@ -11,6 +12,7 @@ const SISTEMAS_DISPONIVEIS = [
 ];
 
 export default function ModalCampanha({ campanha, onSalvar, onCancelar }) {
+  const toast = useToast();
   const [passo, setPasso] = useState(1); // 1: Básicos, 2: Convite
 
   // Dados da Campanha
@@ -43,14 +45,17 @@ export default function ModalCampanha({ campanha, onSalvar, onCancelar }) {
     }
   }, [campanha]);
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setCapaPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    try {
+      validarImagemUpload(file);
+      const dataUrl = await redimensionarImagem(file, 1600, 900, 0.85);
+      setCapaPreview(dataUrl);
+    } catch (err) {
+      toast(err.message || 'Não foi possível processar a capa.', 'erro');
+    } finally {
+      e.target.value = '';
     }
   };
 

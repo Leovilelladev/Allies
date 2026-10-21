@@ -45,7 +45,7 @@ export default function ModalSessao({
 
     onSalvar({
       id: sessao?.id,
-      campanha_id: Number(campanhaId) || Number(campanhaPadraoId) || null,
+      campanha_id: campanhaId || campanhaPadraoId || null,
       titulo: titulo.trim(),
       data_agendada: data ? new Date(data).toISOString() : null,
       status,

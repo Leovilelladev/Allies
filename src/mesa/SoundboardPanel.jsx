@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { sb } from '../shared/supabaseClient';
+import { UPLOAD_LIMITES, validarArquivoUpload } from '../shared/uploadPolicy';
 
 export default function SoundboardPanel({ campanhaId, ehMestre, audio }) {
   const [sons, setSons] = useState([]);
@@ -50,9 +51,18 @@ export default function SoundboardPanel({ campanhaId, ehMestre, audio }) {
       e.target.value = '';
       if (!arquivo) return;
       setErro('');
+      try {
+        validarArquivoUpload(arquivo, UPLOAD_LIMITES.audio);
+      } catch (erroValidacao) {
+        setErro(erroValidacao.message);
+        return;
+      }
       setEnviando(true);
       const caminho = `${campanhaId}/${crypto.randomUUID()}-${arquivo.name}`;
-      const { error: erroUpload } = await sb.storage.from('mesa-sons').upload(caminho, arquivo);
+      const { error: erroUpload } = await sb.storage.from('mesa-sons').upload(caminho, arquivo, {
+        contentType: arquivo.type,
+        upsert: false,
+      });
       if (erroUpload) {
         setErro('Falha ao enviar o áudio.');
         setEnviando(false);
@@ -63,7 +73,10 @@ export default function SoundboardPanel({ campanhaId, ehMestre, audio }) {
         nome: arquivo.name.replace(/\.[^/.]+$/, ''),
         caminho_arquivo: caminho,
       });
-      if (erroInsert) setErro('Áudio enviado, mas falhou ao salvar na lista.');
+      if (erroInsert) {
+        await sb.storage.from('mesa-sons').remove([caminho]);
+        setErro('Não foi possível salvar o áudio na lista. O arquivo enviado foi removido.');
+      }
       setEnviando(false);
     },
     [campanhaId]

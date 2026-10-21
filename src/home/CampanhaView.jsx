@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { obterRetratoPersonagem } from '../shared';
+import { sameId } from '../shared/ids';
 import Avatar from '../shared/Avatar';
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -50,7 +51,7 @@ export default function CampanhaView({
   onEditarSessao,
   onExcluirSessao,
 }) {
-  const souMestre = Number(campanha.mestre_id) === Number(usuarioAtual?.id);
+  const souMestre = sameId(campanha.mestre_id, usuarioAtual?.id);
 
   const subtitulo = useMemo(() => {
     const partes = [campanha.sistema || 'D&D 5E'];
@@ -196,7 +197,7 @@ export default function CampanhaView({
             INTEGRANTES DO REINO:
           </span>
           {participantes.map((m) => {
-            const ehMestre = Number(m.usuario_id) === Number(campanha.mestre_id);
+            const ehMestre = sameId(m.usuario_id, campanha.mestre_id);
             const u = perfis[m.usuario_id];
             const nome = u?.nome_exibicao || u?.nome || u?.nome_usuario || '—';
             return (
@@ -396,7 +397,7 @@ export default function CampanhaView({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
             {fichas.map((f) => {
               const d = f.dados_ficha || f.dados || {};
-              const dono = Number(f.usuario_id) === Number(usuarioAtual?.id);
+              const dono = sameId(f.usuario_id, usuarioAtual?.id);
               const u = perfis[f.usuario_id];
               const nomeAutor = u?.nome_exibicao || u?.nome || u?.nome_usuario || '—';
               const nomePersonagem = f.nome || f.nome_personagem || 'Personagem Sem Nome';

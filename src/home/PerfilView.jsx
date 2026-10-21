@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import Avatar from '../shared/Avatar';
 import { obterRetratoPersonagem } from '../shared';
+import { sameId } from '../shared/ids';
 
 function formatarMesAno(iso) {
   if (!iso) return '—';
@@ -21,16 +22,16 @@ export default function PerfilView({
   onAbrirCampanha,
   onAbrirFicha,
 }) {
-  const idPerfil = Number(perfil?.id);
-  const idAtual = Number(usuarioAtual?.id);
+  const idPerfil = perfil?.id;
+  const idAtual = usuarioAtual?.id;
 
   const idsCampanhasDoPerfil = useMemo(() => {
     const set = new Set();
     campanhas.forEach((c) => {
-      if (Number(c.mestre_id) === idPerfil) set.add(Number(c.id));
+      if (sameId(c.mestre_id, idPerfil)) set.add(String(c.id));
     });
     campanhaPersonagens.forEach((cp) => {
-      if (Number(cp.usuario_id) === idPerfil) set.add(Number(cp.campanha_id));
+      if (sameId(cp.usuario_id, idPerfil)) set.add(String(cp.campanha_id));
     });
     return set;
   }, [campanhas, campanhaPersonagens, idPerfil]);
@@ -38,37 +39,37 @@ export default function PerfilView({
   const idsCampanhasDoVisitante = useMemo(() => {
     const set = new Set();
     campanhas.forEach((c) => {
-      if (Number(c.mestre_id) === idAtual) set.add(Number(c.id));
+      if (sameId(c.mestre_id, idAtual)) set.add(String(c.id));
     });
     campanhaPersonagens.forEach((cp) => {
-      if (Number(cp.usuario_id) === idAtual) set.add(Number(cp.campanha_id));
+      if (sameId(cp.usuario_id, idAtual)) set.add(String(cp.campanha_id));
     });
     return set;
   }, [campanhas, campanhaPersonagens, idAtual]);
 
   const campanhasVisiveis = useMemo(() => {
     return campanhas.filter((c) => {
-      const id = Number(c.id);
+      const id = String(c.id);
       if (!idsCampanhasDoPerfil.has(id)) return false;
       return ehProprio || idsCampanhasDoVisitante.has(id);
     });
   }, [campanhas, idsCampanhasDoPerfil, idsCampanhasDoVisitante, ehProprio]);
 
   const idsVisiveis = useMemo(
-    () => new Set(campanhasVisiveis.map((c) => Number(c.id))),
+    () => new Set(campanhasVisiveis.map((c) => String(c.id))),
     [campanhasVisiveis]
   );
 
   const fichasVisiveis = useMemo(() => {
     return todasFichas.filter((f) => {
-      if (Number(f.usuario_id) !== idPerfil) return false;
+      if (!sameId(f.usuario_id, idPerfil)) return false;
       if (ehProprio) return true;
-      return f.campanha_id && idsVisiveis.has(Number(f.campanha_id));
+      return f.campanha_id && idsVisiveis.has(String(f.campanha_id));
     });
   }, [todasFichas, idPerfil, ehProprio, idsVisiveis]);
 
   const mestradas = useMemo(
-    () => campanhas.filter((c) => Number(c.mestre_id) === idPerfil).length,
+    () => campanhas.filter((c) => sameId(c.mestre_id, idPerfil)).length,
     [campanhas, idPerfil]
   );
 
@@ -185,7 +186,7 @@ export default function PerfilView({
                 <div className="perfil-item-txt">
                   <strong>{c.titulo || c.nome}</strong>
                   <span>
-                    {Number(c.mestre_id) === idPerfil ? 'Mestre' : 'Jogador'} · {c.sistema || 'D&D 5E'}
+                    {sameId(c.mestre_id, idPerfil) ? 'Mestre' : 'Jogador'} · {c.sistema || 'D&D 5E'}
                   </span>
                 </div>
                 <span className="material-symbols-outlined perfil-item-seta">chevron_right</span>

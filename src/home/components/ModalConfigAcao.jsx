@@ -6,6 +6,8 @@ import {
   ACOES_PRESETS,
   fmtMod,
   redimensionarImagem,
+  useToast,
+  validarImagemUpload,
 } from '../../shared';
 
 const TIPOS_ACAO = [
@@ -60,6 +62,7 @@ export default function ModalConfigAcao({
   onSalvar,
   onCancelar,
 }) {
+  const toast = useToast();
   const [tabAtiva, setTabAtiva] = useState('detalhes'); // 'detalhes' | 'mecanicas' | 'custos'
   const fileInputRef = useRef(null);
   const [carregandoImg, setCarregandoImg] = useState(false);
@@ -76,11 +79,12 @@ export default function ModalConfigAcao({
     if (!file) return;
     try {
       setCarregandoImg(true);
+      validarImagemUpload(file);
       // Redimensiona a imagem para no máximo 500x500px preservando a proporção
       const dataUrl = await redimensionarImagem(file, 500, 500, 0.88);
       setIconeUrl(dataUrl);
     } catch (err) {
-      console.error('Erro ao redimensionar imagem:', err);
+      toast(err.message || 'Não foi possível processar o ícone.', 'erro');
     } finally {
       setCarregandoImg(false);
       if (e.target) e.target.value = '';

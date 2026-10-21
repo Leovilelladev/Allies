@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { obterRetratoPersonagem } from '../shared';
+import { sameId } from '../shared/ids';
 
 function initials(nome) {
   if (!nome) return '?';
@@ -187,7 +188,7 @@ export default function PersonagensView({
           const camp = f.campanha_id ? campanhasMap[f.campanha_id] : null;
           const dono = perfis && typeof perfis === 'object' && f.usuario_id ? perfis[f.usuario_id] : null;
           const donoNome = dono?.nome_exibicao || dono?.nome || dono?.nome_usuario || 'Jogador';
-          const eMeu = Number(f.usuario_id) === Number(usuarioAtual?.id);
+          const eMeu = sameId(f.usuario_id, usuarioAtual?.id);
           const portraitUrl = obterRetratoPersonagem(f);
 
           let dados = {};

@@ -29,11 +29,15 @@ export default function useAudioMesa(cenaId) {
     return () => { canalRef.current = null; sb.removeChannel(canal); parar(); };
   }, [cenaId, reproduzir, parar]);
   const tocar = useCallback(async som => {
-    const { data } = sb.storage.from('mesa-sons').getPublicUrl(som.caminho_arquivo);
-    if (!data?.publicUrl) return;
-    await reproduzir(data.publicUrl);
+    if (!som?.caminho_arquivo) return;
+    const { data, error } = await sb.storage.from('mesa-sons').createSignedUrl(som.caminho_arquivo, 3600);
+    if (error || !data?.signedUrl) {
+      setErro('Não foi possível autorizar a reprodução deste som.');
+      return;
+    }
+    await reproduzir(data.signedUrl);
     try {
-      const status = await canalRef.current?.send({ type: 'broadcast', event: 'tocar', payload: { url: data.publicUrl } });
+      const status = await canalRef.current?.send({ type: 'broadcast', event: 'tocar', payload: { url: data.signedUrl } });
       if (status !== 'ok') setErro('Não foi possível confirmar o envio do som à mesa.');
     } catch { setErro('Falha de conexão ao enviar o som à mesa.'); }
   }, [reproduzir]);

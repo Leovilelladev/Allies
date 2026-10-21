@@ -34,7 +34,7 @@ export async function listarNotificacoes(usuarioId, limite = 50) {
   const { data, error } = await sb
     .from('notificacoes')
     .select('*')
-    .eq('usuario_id', Number(usuarioId))
+    .eq('usuario_id', usuarioId)
     .order('criado_em', { ascending: false })
     .limit(limite);
 
@@ -54,7 +54,7 @@ export async function marcarTodasComoLidas(usuarioId) {
   const { error } = await sb
     .from('notificacoes')
     .update({ lida: true })
-    .eq('usuario_id', Number(usuarioId))
+    .eq('usuario_id', usuarioId)
     .eq('lida', false);
   if (error) throw error;
 }
@@ -68,7 +68,7 @@ export async function limparLidas(usuarioId) {
   const { error } = await sb
     .from('notificacoes')
     .delete()
-    .eq('usuario_id', Number(usuarioId))
+    .eq('usuario_id', usuarioId)
     .eq('lida', true);
   if (error) throw error;
 }
@@ -95,7 +95,7 @@ export function inscreverNotificacoes(usuarioId, aoReceber) {
         event: 'INSERT',
         schema: 'public',
         table: 'notificacoes',
-        filter: `usuario_id=eq.${Number(usuarioId)}`,
+        filter: `usuario_id=eq.${usuarioId}`,
       },
       (payload) => aoReceber(payload.new)
     )
@@ -114,7 +114,7 @@ export function lembretesDispensados() {
   try {
     const bruto = localStorage.getItem(CHAVE_DISPENSADOS);
     const lista = bruto ? JSON.parse(bruto) : [];
-    return Array.isArray(lista) ? lista.map(Number) : [];
+    return Array.isArray(lista) ? lista.map(String) : [];
   } catch {
     return [];
   }
@@ -124,7 +124,7 @@ export function dispensarLembrete(sessaoId) {
   if (!sessaoId) return;
   try {
     const atual = new Set(lembretesDispensados());
-    atual.add(Number(sessaoId));
+    atual.add(String(sessaoId));
     localStorage.setItem(CHAVE_DISPENSADOS, JSON.stringify([...atual].slice(-200)));
   } catch {
     /* localStorage indisponível — segue sem persistir */

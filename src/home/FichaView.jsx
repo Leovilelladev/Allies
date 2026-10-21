@@ -9,8 +9,10 @@ import {
   aplicarDescansoAcoes,
   ACOES_PRESETS,
   redimensionarImagem,
+  validarImagemUpload,
   useToast,
 } from '../shared';
+import { sameId } from '../shared/ids';
 
 const ATRIBUTOS_INFO = [
   { id: 'for', sigla: 'STR', nome: 'Força' },
@@ -232,7 +234,7 @@ function RadarChart({ atributos = {} }) {
 
 export default function FichaView({ ficha = {}, usuarioAtual = {}, onVoltar, onSalvar }) {
   const toast = useToast();
-  const somenteLeitura = Number(ficha?.usuario_id) !== Number(usuarioAtual?.id);
+  const somenteLeitura = !sameId(ficha?.usuario_id, usuarioAtual?.id);
   const [tabAtiva, setTabAtiva] = useState('actions');
   const [modalTema, setModalTema] = useState(false);
 
@@ -393,10 +395,11 @@ export default function FichaView({ ficha = {}, usuarioAtual = {}, onVoltar, onS
     const file = e.target.files?.[0];
     if (file) {
       try {
+        validarImagemUpload(file);
         const dataUrl = await redimensionarImagem(file, 500, 500, 0.88);
         setAvatarUrl(dataUrl);
       } catch (err) {
-        console.error('Erro ao redimensionar avatar:', err);
+        toast(err.message || 'Não foi possível processar o avatar.', 'erro');
       }
     }
   };
@@ -414,6 +417,7 @@ export default function FichaView({ ficha = {}, usuarioAtual = {}, onVoltar, onS
     }
 
     try {
+      validarImagemUpload(file);
       const dataUrl = await redimensionarImagem(file, 1600, 900, 0.85);
       setBackgroundUrl(dataUrl);
       toast('Fundo carregado! Clique em Salvar Ficha para gravar.', 'sucesso');

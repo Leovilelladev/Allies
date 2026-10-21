@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useToast } from '../../shared/Toast';
 import { redimensionarImagem } from '../../shared/imageUtils';
+import { validarImagemUpload } from '../../shared/uploadPolicy';
 import Avatar from '../../shared/Avatar';
 import {
   salvarPerfil,
@@ -78,6 +79,7 @@ export default function ModalConfiguracoes({ perfil, abaInicial = 'perfil', onFe
     const file = e.target.files?.[0];
     if (!file) return;
     try {
+      validarImagemUpload(file);
       const dataUrl = await redimensionarImagem(file, 256, 256, 0.85);
       setAvatarUrl(dataUrl);
     } catch (err) {

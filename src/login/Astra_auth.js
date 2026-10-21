@@ -1,10 +1,8 @@
 // Astra: autenticação sem consultar ou armazenar senhas na tabela de perfis.
 async function Astra_perfil(client, user) {
-  const { data: id, error: vinculoError } = await client.rpc('current_user_id');
-  if (vinculoError) throw vinculoError;
-  if (!id) throw new Error('Não foi possível encontrar o perfil desta conta.');
+  if (!user?.id) throw new Error('Não foi possível validar a conta autenticada.');
   const { data: perfil, error } = await client.from('usuarios')
-    .select('id, nome_usuario, nome_exibicao').eq('id', id).maybeSingle();
+    .select('id, auth_id, nome_usuario, nome_exibicao').eq('auth_id', user.id).maybeSingle();
   if (error) throw error;
   if (!perfil) throw new Error('Não foi possível encontrar o perfil desta conta.');
   return {
@@ -16,8 +14,10 @@ async function Astra_perfil(client, user) {
 }
 
 export async function Astra_login(client, usuario, senha) {
+  const identificador = String(usuario || '').trim().toLowerCase();
+  const email = identificador.includes('@') ? identificador : `${identificador}@allies.local`;
   const { data, error } = await client.auth.signInWithPassword({
-    email: `${usuario.trim().toLowerCase()}@allies.local`, password: senha,
+    email, password: senha,
   });
   if (error) throw error;
   if (!data?.session || !data?.user) throw new Error('Não foi possível iniciar a sessão. Tente novamente.');

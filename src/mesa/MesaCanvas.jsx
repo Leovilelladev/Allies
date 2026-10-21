@@ -17,7 +17,6 @@ import SoundboardPanel from './SoundboardPanel';
 import useAudioMesa from './useAudioMesa';
 import FichaPanel from './FichaPanel';
 import { lerFicha, montarAtualizacao } from './fichaLegado';
-import { lerUsuarioLocal } from './Mesa';
 import TokenPanel from './TokenPanel';
 import { METROS_POR_QUADRADO as METROS } from './constantes';
 import { COR, CSS, FONTE_SANS } from './paleta';
@@ -37,6 +36,7 @@ import {
 import { MODOS, rolarD20, rolarFormula, enviarRolagem } from './rolagem';
 import { enviarImagem, enviarMapa, importarDeUrl } from './imagens';
 import { sb } from '../shared/supabaseClient';
+import { sameId } from '../shared/ids';
 import { useToast } from '../shared/Toast';
 
 const ESCALA_MIN = 0.2;
@@ -335,21 +335,31 @@ export default function MesaCanvas({ cenaId, campanhaId, seletor, onVoltarCampan
     if (!cenaId) return;
 
     async function carregar() {
-      // Mesma identidade do site: o usuário guardado pelo login
-      const local = lerUsuarioLocal();
-      const uid = local?.id ?? null;
+      // O JWT do Supabase Auth é a fonte confiável da identidade.
+      const { data: authData } = await sb.auth.getUser();
+      const uid = authData?.user?.id ?? null;
       if (!ativo) return;
       if (uid) {
-        setPerfil({ id: uid, nome: local.nome_exibicao || local.nome_usuario || 'Anônimo' });
+        const { data: perfilData } = await sb
+          .from('usuarios')
+          .select('id, nome_exibicao, nome_usuario')
+          .eq('auth_id', uid)
+          .maybeSingle();
+        setPerfil({ id: perfilData?.id ?? null, nome: perfilData?.nome_exibicao || perfilData?.nome_usuario || 'Anônimo' });
       }
 
       if (uid && campanhaId) {
+        const { data: perfilAtual } = await sb
+          .from('usuarios')
+          .select('id')
+          .eq('auth_id', uid)
+          .maybeSingle();
         const { data: campanhaData } = await sb
           .from('campanhas')
           .select('mestre_id')
           .eq('id', campanhaId)
           .maybeSingle();
-        if (ativo) setEhMestre(Number(campanhaData?.mestre_id) === Number(uid));
+        if (ativo) setEhMestre(sameId(campanhaData?.mestre_id, perfilAtual?.id));
 
         // O elenco da campanha vem por campanha_personagens
         const { data: elenco } = await sb

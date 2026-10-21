@@ -15,6 +15,13 @@ function lista(valor) {
   return Array.isArray(valor) ? valor : null;
 }
 
+function indiceCor(id) {
+  const texto = String(id ?? '');
+  let hash = 0;
+  for (const caractere of texto) hash = (hash * 31 + caractere.charCodeAt(0)) >>> 0;
+  return hash % PALETA.length;
+}
+
 /** Linha de `personagens` → ficha usada pela Mesa. */
 export function lerFicha(row) {
   if (!row) return null;
@@ -59,7 +66,7 @@ export function lerFicha(row) {
     },
 
     retratoUrl: row.token_url || row.avatar_url || d.retrato_url || null,
-    cor: d.cor_token || PALETA[(Number(row.id) || 0) % PALETA.length],
+    cor: d.cor_token || PALETA[indiceCor(row.id)],
 
     // Campos que só a Mesa usa — moram no dados_ficha e o site ignora
     salvaguardas: objeto(d.salvaguardas) || {},

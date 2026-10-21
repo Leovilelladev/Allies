@@ -296,8 +296,8 @@ export default function TokenPanel({
               onChange={(e) =>
                 onAtualizar(
                   token.id,
-                  { fichaId: e.target.value ? Number(e.target.value) : null },
-                  { personagem_id: e.target.value ? Number(e.target.value) : null }
+                  { fichaId: e.target.value || null },
+                  { personagem_id: e.target.value || null }
                 )
               }
             >

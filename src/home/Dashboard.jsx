@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import bgCastelo from '../assets/backgrounds/bg-castelo.jpg';
 import bgLaboratorio from '../assets/backgrounds/bg-laboratorio.jpg';
+import { sameId } from '../shared/ids';
 
 const CARD_BACKGROUNDS = [bgCastelo, bgLaboratorio];
 
@@ -100,7 +101,7 @@ export default function Dashboard({
           const mestreNome = mestre?.nome_exibicao || mestre?.nome || mestre?.nome_usuario || 'Mestre';
           const nFichas = fichasPorCampanha[c.id] || 0;
           const artBg = c.imagem_capa_url || CARD_BACKGROUNDS[index % CARD_BACKGROUNDS.length];
-          const souMestre = Number(c.mestre_id) === Number(usuarioAtual?.id);
+          const souMestre = sameId(c.mestre_id, usuarioAtual?.id);
           const proxSessao = proximaSessaoPorCampanha[c.id];
 
           return (

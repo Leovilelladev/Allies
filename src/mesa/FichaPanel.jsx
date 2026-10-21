@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { sb } from '../shared/supabaseClient';
+import { sameId } from '../shared/ids';
 import { executarRolagemAcao, extrairStatsContexto, aplicarDescansoAcoes } from '../shared/actionEngine';
 import { rolarD20, rolarFormula, enviarRolagem, fmtMod, MODOS } from './rolagem';
 import { enviarImagem, importarDeUrl } from './imagens';
@@ -112,6 +113,7 @@ export default function FichaPanel({
   const [criando, setCriando] = useState(false);
   const [nomeNova, setNomeNova] = useState('');
   const [editando, setEditando] = useState(false);
+  const [erroGravacao, setErroGravacao] = useState('');
   const [rascunho, setRascunho] = useState(null);
   const [ajustePv, setAjustePv] = useState('');
   const [enviandoRetrato, setEnviandoRetrato] = useState(false);
@@ -133,8 +135,8 @@ export default function FichaPanel({
       return;
     }
     let lista = (data ?? []).map((e) => e.personagens).filter(Boolean);
-    if (!ehMestre) lista = lista.filter((f) => Number(f.usuario_id) === Number(userId));
-    lista.sort((a, b) => a.id - b.id);
+    if (!ehMestre) lista = lista.filter((f) => sameId(f.usuario_id, userId));
+    lista.sort((a, b) => String(a.id).localeCompare(String(b.id)));
     setFichas(lista);
     setFichaId((atual) => {
       const ativa = encontrarFicha(lista, atual);
@@ -142,7 +144,7 @@ export default function FichaPanel({
       const salva = localStorage.getItem(chaveLocal);
       const lembrada = encontrarFicha(lista, salva);
       if (lembrada) return lembrada.id;
-      const minha = lista.find((f) => Number(f.usuario_id) === Number(userId));
+      const minha = lista.find((f) => sameId(f.usuario_id, userId));
       return (minha || lista[0])?.id ?? null;
     });
     setCarregando(false);
@@ -180,16 +182,22 @@ export default function FichaPanel({
 
   const fichaBruta = useMemo(() => encontrarFicha(fichas, fichaId), [fichas, fichaId]);
   const ficha = useMemo(() => (fichaBruta ? lerFicha(fichaBruta) : null), [fichaBruta]);
-  const souDono = Number(fichaBruta?.usuario_id) === Number(userId) || ehMestre;
+  const souDono = sameId(fichaBruta?.usuario_id, userId) || ehMestre;
 
   // ---- Gravação -------------------------------------------------------
   const salvarDados = useCallback(
     async (patch) => {
       if (!fichaBruta) return;
       const update = montarAtualizacao(fichaBruta, patch);
+      const anterior = fichaBruta;
+      setErroGravacao('');
       setFichas((prev) => prev.map((f) => (f.id === fichaBruta.id ? { ...f, ...update } : f)));
       const { error } = await sb.from('personagens').update(update).eq('id', fichaBruta.id);
-      if (error) console.error('Falha ao salvar ficha:', error.message);
+      if (error) {
+        setFichas((prev) => prev.map((f) => (f.id === anterior.id ? anterior : f)));
+        setErroGravacao(`Não foi possível salvar a ficha: ${error.message}`);
+        console.error('Falha ao salvar ficha:', error.message);
+      }
     },
     [fichaBruta]
   );
@@ -631,6 +639,7 @@ export default function FichaPanel({
 
   return (
     <div className="ficha">
+      {erroGravacao && <div className="chat-erro" role="alert">{erroGravacao}</div>}
       {/* Cabeçalho */}
       <div className="ficha-topo">
         <button

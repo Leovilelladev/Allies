@@ -3,6 +3,7 @@
 // guarda arquivos pequenos em vez de fotos de 4 MB.
 import { sb } from '../shared/supabaseClient';
 import { redimensionarImagem } from '../shared/imageUtils';
+import { UPLOAD_LIMITES, validarArquivoUpload } from '../shared/uploadPolicy';
 
 const BUCKET_RETRATOS = 'mesa-imagens';
 const BUCKET_MAPAS = 'mesa-mapas';
@@ -28,8 +29,7 @@ async function subir(bucket, blob, pasta) {
 }
 
 function validar(arquivo) {
-  if (!arquivo) throw new Error('Nenhum arquivo');
-  if (!arquivo.type?.startsWith('image/')) throw new Error('O arquivo precisa ser uma imagem');
+  validarArquivoUpload(arquivo, UPLOAD_LIMITES.imagem);
 }
 
 /** Retrato de ficha / imagem de token: quadrado, 320px. */
@@ -96,7 +96,7 @@ export function medirImagem(arquivo) {
  * quantos quadrados a mesa deve ter.
  */
 export async function enviarMapa(arquivo, pasta = 'geral') {
-  validar(arquivo);
+  validarArquivoUpload(arquivo, UPLOAD_LIMITES.mapa);
   const medidas = await medirImagem(arquivo);
   const dataUrl = await redimensionarImagem(arquivo, 2560, 2560, 0.9);
   const url = await subir(BUCKET_MAPAS, dataUrlParaBlob(dataUrl), pasta);

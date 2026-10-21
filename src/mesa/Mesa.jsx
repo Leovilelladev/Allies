@@ -2,17 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import MesaCanvas from './MesaCanvas';
 import ModalNome from './ModalNome';
 import { sb } from '../shared/supabaseClient';
-
-export function lerUsuarioLocal() {
-  try {
-    const bruto = localStorage.getItem('allies_usuario');
-    if (!bruto) return null;
-    const u = JSON.parse(bruto);
-    return u?.id ? u : null;
-  } catch (e) {
-    return null;
-  }
-}
+import { sameId } from '../shared/ids';
 
 function sincronizarUrl(campanhaId, sessaoId, cenaId) {
   const p = new URLSearchParams();
@@ -44,13 +34,26 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
       return;
     }
 
-    // Mesma identidade do site: o id de `usuarios` que o login guarda no
-    // localStorage. A mesa não tem sessão própria.
-    const meuId = lerUsuarioLocal()?.id ?? null;
-    if (!meuId) {
+    // A autorização vem do JWT validado pelo Supabase Auth. O localStorage
+    // pode ser adulterado pelo navegador e não é uma fonte confiável de ID.
+    const { data: authData } = await sb.auth.getUser();
+    const authId = authData?.user?.id ?? null;
+    if (!authId) {
       setStatus('sem-sessao-auth');
       return;
     }
+
+    const { data: perfilAtual, error: erroPerfil } = await sb
+      .from('usuarios')
+      .select('id')
+      .eq('auth_id', authId)
+      .maybeSingle();
+    if (erroPerfil || !perfilAtual) {
+      setErro(erroPerfil?.message || 'Perfil autenticado não encontrado.');
+      setStatus('erro');
+      return;
+    }
+    const meuId = perfilAtual.id;
 
     const { data: campanha, error: erroCampanha } = await sb
       .from('campanhas')
@@ -69,7 +72,7 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
       return;
     }
 
-    const souMestre = Number(campanha.mestre_id) === Number(meuId);
+    const souMestre = sameId(campanha.mestre_id, meuId);
     setEhMestre(souMestre);
 
     const { data: lista, error: erroSessoes } = await sb
@@ -177,7 +180,7 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
           setSessoes((prev) => {
             if (payload.eventType === 'DELETE') return prev.filter((s) => s.id !== payload.old.id);
             const sem = prev.filter((s) => s.id !== payload.new.id);
-            return [...sem, payload.new].sort((a, b) => a.id - b.id);
+            return [...sem, payload.new].sort((a, b) => String(a.id).localeCompare(String(b.id)));
           });
         }
       )
@@ -220,7 +223,7 @@ export default function Mesa({ campanhaId, sessaoInicialId, onVoltarCampanha }) 
       const criada = await criarSessaoNoBanco(campanhaId, nome.trim());
       if (criada) {
         setSessoes((prev) =>
-          [...prev.filter((s) => s.id !== criada.id), criada].sort((a, b) => a.id - b.id)
+          [...prev.filter((s) => s.id !== criada.id), criada].sort((a, b) => String(a.id).localeCompare(String(b.id)))
         );
         setCenaId(null);
         setSessaoId(criada.id);
