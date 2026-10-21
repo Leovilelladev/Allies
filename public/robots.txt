@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /mesa/
+
+Sitemap: https://www.alliesrpg.com.br/sitemap.xml
